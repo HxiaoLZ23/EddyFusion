@@ -18,18 +18,29 @@ pip install -r requirements.txt
 
 验证：`python -c "import torch; print(torch.__version__)"`
 
+在仓库根目录执行 `python -m ...`（Windows / Linux 均如此）。
+
 ## 目录结构
 
 与《A09-项目开发文档》一致：`config/`、`data/`、`src/`、`scripts/`、`outputs/`、`docs/`、`submission/`。
+
+## 阶段一：无命题方数据时的烟测（合成 / 内置小集）
+
+| 模块 | 命令 |
+|------|------|
+| 水文 ConvLSTM | `python -m src.hydro.train --synthetic` → `python -m src.hydro.eval --config config/hydro_synthetic.yaml --ckpt outputs/hydro/best.pt` |
+| 风-浪 LSTM | `python -m src.anomaly.train --synthetic` → `python -m src.anomaly.eval` |
+| 涡旋 YOLO-seg | `python -m src.eddy.train --smoke`（使用 ultralytics 内置 `coco8-seg`，需联网下载） |
+| NetCDF 检查 | 将 `*.nc` 放入 `data/raw/` 后：`python -m src.preprocess.netcdf_io --config config/data.yaml` |
+
+全量数据就绪后：预处理 → 各模块 `train` / `eval`，详见 `scripts/*.sh`。
 
 ## 运行顺序（数据就绪后）
 
 1. 预处理：`bash scripts/run_preprocess.sh`（或分步执行 `python -m src.preprocess.*`）
 2. 训练：`bash scripts/run_eddy_train.sh` 等
-3. 评估：`bash scripts/run_eval_all.sh`
+3. 评估：`bash scripts/run_eval_all.sh`（需各模块已产出 `outputs/*/best.pt`）
 4. 演示：`python -m src.demo.app_gradio`（实现后）
-
-当前各模块入口为**占位实现**，需按《A09-分阶段详细执行指南》阶段一继续开发。
 
 ## 远程仓库
 

@@ -7,6 +7,7 @@ netCDF4>=1.6.0
 scipy>=1.9
 pandas>=1.4
 PyYAML>=6.0
+tqdm>=4.65
 
 # 涡旋
 ultralytics>=8.0.0

@@ -1,0 +1,85 @@
+# 小型合成数据 + 短序列，用于无命题方数据时的烟测（CPU/GPU 快速跑通）
+# 训练请使用: python -m src.hydro.train --config config/hydro_synthetic.yaml --synthetic
+
+meta:
+  project: "EddyFusion"
+  module: "hydro"
+  version: "1.0"
+  level: 2
+  seed: 42
+
+paths:
+  train_data: "data/processed/hydro/X_train.npz"
+  train_label: "data/processed/hydro/y_train.npz"
+  val_data: "data/processed/hydro/X_val.npz"
+  val_label: "data/processed/hydro/y_val.npz"
+  test_data: "data/processed/hydro/X_test.npz"
+  test_label: "data/processed/hydro/y_test.npz"
+  output_dir: "outputs/hydro"
+
+data:
+  input_features: ["temp", "sal", "u", "v", "wind_speed", "wave_height"]
+  target_features: ["temp", "sal", "u", "v"]
+  input_days: 3
+  input_steps: 24
+  output_hours: [72, 96, 120]
+  output_steps: 4
+  grid_shape: [32, 32]
+  normalize:
+    temp: "zscore"
+    sal: "zscore"
+    u: "zscore"
+    v: "zscore"
+    wind_speed: "robust"
+    wave_height: "robust"
+  num_workers: 0
+  pin_memory: false
+
+model:
+  name: "ConvLSTM_Hydro"
+  hidden_dim: 64
+  num_layers: 2
+  kernel_size: 3
+  dropout: 0.0
+  use_element_attention: true
+  element_attention_hidden: 32
+
+mot:
+  enabled: false
+
+attn_res:
+  enabled: false
+  type: "block"
+  num_blocks: 4
+
+loss:
+  base: "mse"
+  mae_weight: 0.1
+  eos_constraint:
+    enabled: false
+    weight: 0.1
+    mode: "soft"
+
+train:
+  device: "cuda"
+  epochs: 5
+  batch_size: 4
+  optimizer: "adamw"
+  lr: 0.001
+  weight_decay: 0.01
+  scheduler: "cosine"
+  warmup_epochs: 0
+  grad_clip_norm: 1.0
+  amp: false
+  early_stop_patience: 10
+  log_interval: 10
+  save_best_by: "val_nrmse_avg"
+  checkpoint_every_epoch: 1
+
+eval:
+  metrics: ["rmse", "nrmse", "mae"]
+  report_horizons_hours: [72, 96, 120]
+  save_preds: false
+  save_metrics_json: true
+  metrics_file: "outputs/hydro/metrics_summary.json"
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled"]
