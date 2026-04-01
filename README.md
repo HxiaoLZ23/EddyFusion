@@ -4,19 +4,37 @@
 
 ## 环境
 
-- Python 3.9+（推荐 3.10）
-- PyTorch **≥2.5.1**（按 [pytorch.org](https://pytorch.org) 选择与 CUDA 匹配的 wheel）
+- Python 3.9+（推荐 3.10；当前若使用 3.12 需自行确认与命题方环境一致）
+- PyTorch **≥2.5.1**（按 [pytorch.org](https://pytorch.org) 选择与 CUDA 匹配的 wheel；`pip` 默认常为 **CPU** 版，训练请按需改装 GPU 版）
 - Linux / WSL2 推荐用于训练与推理
+
+### 虚拟环境（仓库根目录执行）
+
+**Windows (PowerShell)**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -U pip
+pip install -r requirements.txt
+```
+
+**Linux / macOS**
 
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
 source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
 
-验证：`python -c "import torch; print(torch.__version__)"`
+验证：
+
+```bash
+python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_available())"
+```
+
+命题方原始数据目录在 `config/data.yaml` 的 `paths.raw_root`（默认 **`服创数据集/`**），预处理脚本会递归扫描其下 `*.nc`。
 
 在仓库根目录执行 `python -m ...`（Windows / Linux 均如此）。
 

@@ -51,16 +51,30 @@ def main() -> None:
         inspect_file(p)
         return
 
+    if not raw_root.is_dir():
+        print(f"原始数据目录不存在: {raw_root}\n请检查 config/data.yaml 中 paths.raw_root（当前命题方数据为「服创数据集」）。", file=sys.stderr)
+        sys.exit(2)
+
     files = _iter_nc_files(raw_root)
     if not files:
         print(
-            f"未在 {raw_root} 发现 NetCDF（*.nc / *.nc4）。请将命题方数据放入该目录或使用 --path。",
+            f"未在 {raw_root} 发现 NetCDF（*.nc / *.nc4）。请检查命题方数据是否已解压或使用 --path。",
             file=sys.stderr,
         )
         sys.exit(2)
-    inspect_file(files[0])
-    if len(files) > 1:
-        print(f"\n（共 {len(files)} 个文件，仅展示第一个；可用 --path 指定）")
+
+    last_err: Exception | None = None
+    for p in files:
+        try:
+            inspect_file(p)
+            if len(files) > 1:
+                print(f"\n（共 {len(files)} 个文件，已打开第一个可读文件；可用 --path 指定其它文件）")
+            return
+        except Exception as e:
+            last_err = e
+            print(f"[跳过] 无法打开: {p}\n  原因: {e}", file=sys.stderr)
+    print(f"所有候选文件均无法打开。最后一个错误: {last_err}", file=sys.stderr)
+    sys.exit(3)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@ meta:
   version: "1.0"
 
 paths:
-  raw_root: "data/raw"
+  # 命题方数据目录（仓库根目录下）
+  raw_root: "服创数据集"
   processed_root: "data/processed"
 
 spatial:
