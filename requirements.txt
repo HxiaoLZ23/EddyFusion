@@ -1,0 +1,21 @@
+# A09 / EddyFusion — 赛题与《A09-项目开发文档》一致
+# PyTorch：请按本机 CUDA 从 https://pytorch.org 安装对应 wheel，再 pip install -r requirements.txt
+torch>=2.5.1
+numpy>=1.21
+xarray>=2023.1.0
+netCDF4>=1.6.0
+scipy>=1.9
+pandas>=1.4
+PyYAML>=6.0
+
+# 涡旋
+ultralytics>=8.0.0
+opencv-python-headless>=4.5
+
+# 可视化 / 演示
+matplotlib>=3.7
+plotly>=5.18
+gradio>=4.0
+
+# 可选：大数组并行
+# dask>=2023.1.0

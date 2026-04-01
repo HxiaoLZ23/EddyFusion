@@ -1,0 +1,27 @@
+# EddyFusion — 涡旋模块（YOLOv8-seg 等，Level 2 基线先跑通）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0"
+  level: 2   # 0/1/2/3 含义见《A09-最终技术方案与降级策略》
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy/dataset.yaml"   # ultralytics 数据描述，就绪后生成
+  output_dir: "outputs/eddy"
+
+model:
+  backbone: "yolov8n-seg"   # 可按算力调整 n/s/m
+  input_size: [640, 640]
+  channels: 3               # 多通道物理场时改为实际通道数
+
+train:
+  device: "cuda"
+  epochs: 100
+  batch_size: 8
+  workers: 4
+  amp: true
+
+eval:
+  metrics_file: "outputs/eddy/metrics_summary.json"
+  save_preds: true

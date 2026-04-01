@@ -1,0 +1,114 @@
+# A09 水文模块推荐配置（ConvLSTM + MoT + Block AttnRes + EOS）
+# 说明：
+# 1) 先用 level: 2 跑通基线；稳定后切到 level: 1/0。
+# 2) 命题方若有固定评测口径，请以其口径为准；本配置保留 NRMSE 统计用于对比。
+
+meta:
+  project: "EddyFusion"
+  module: "hydro"
+  version: "1.0"
+  level: 2   # 0=全量创新, 1=部分创新, 2=基线达标, 3=保底
+  seed: 42
+
+paths:
+  train_data: "data/processed/hydro/X_train.npz"
+  train_label: "data/processed/hydro/y_train.npz"
+  val_data: "data/processed/hydro/X_val.npz"
+  val_label: "data/processed/hydro/y_val.npz"
+  test_data: "data/processed/hydro/X_test.npz"
+  test_label: "data/processed/hydro/y_test.npz"
+  output_dir: "outputs/hydro"
+
+data:
+  input_features: ["temp", "sal", "u", "v", "wind_speed", "wave_height"]
+  target_features: ["temp", "sal", "u", "v"]
+  input_days: 30
+  input_steps: 120          # 例如 6 小时步长: 30天*4=120
+  output_hours: [72, 96, 120]
+  output_steps: 20          # 120小时/6小时=20
+  grid_shape: [128, 128]    # 按实际网格替换
+  normalize:
+    temp: "zscore"
+    sal: "zscore"
+    u: "zscore"
+    v: "zscore"
+    wind_speed: "robust"
+    wave_height: "robust"
+  num_workers: 4
+  pin_memory: true
+
+model:
+  name: "ConvLSTM_Hydro"
+  hidden_dim: 128
+  num_layers: 3
+  kernel_size: 3
+  dropout: 0.1
+  use_element_attention: true
+  element_attention_hidden: 64
+
+mot:
+  enabled: false            # level 0/1 建议 true；level 2/3 建议 false
+  windows_steps: [28, 60, 120]   # 短/中/长窗口（示例：7/15/30天）
+  branch_hidden_dim: 96
+  fusion: "gated"           # gated | softmax_gate
+
+attn_res:
+  enabled: false            # level 0/1 建议 true；level 2/3 可 false
+  type: "block"             # block | full
+  num_blocks: 8             # 推荐 6~8；与层数匹配
+  init_query_zero: true
+  key_rmsnorm: true
+  pre_norm: true
+  # 若显存/稳定性不足，先关闭 attn_res，再考虑减少 MoT 分支
+
+loss:
+  base: "mse"
+  mae_weight: 0.1
+  eos_constraint:
+    enabled: false          # level 0 建议 true；level 1/2/3 建议 false
+    weight: 0.1
+    mode: "soft"
+
+train:
+  device: "cuda"
+  epochs: 60
+  batch_size: 4
+  optimizer: "adamw"
+  lr: 0.0002
+  weight_decay: 0.01
+  scheduler: "cosine"
+  warmup_epochs: 3
+  grad_clip_norm: 1.0
+  amp: true
+  early_stop_patience: 10
+  log_interval: 50
+  save_best_by: "val_nrmse_avg"
+  checkpoint_every_epoch: 1
+
+eval:
+  metrics: ["rmse", "nrmse", "mae"]
+  report_horizons_hours: [72, 96, 120]
+  save_preds: true
+  save_metrics_json: true
+  metrics_file: "outputs/hydro/metrics_summary.json"
+  # 为消融和答辩复现实验保留以下标签
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled", "attn_res.type", "attn_res.num_blocks", "loss.eos_constraint.enabled"]
+
+ablation_profiles:
+  baseline_l2:
+    level: 2
+    mot.enabled: false
+    attn_res.enabled: false
+    loss.eos_constraint.enabled: false
+  block_attnres_l1:
+    level: 1
+    mot.enabled: true
+    attn_res.enabled: true
+    attn_res.type: "block"
+    loss.eos_constraint.enabled: false
+  full_l0:
+    level: 0
+    mot.enabled: true
+    attn_res.enabled: true
+    attn_res.type: "block"
+    loss.eos_constraint.enabled: true

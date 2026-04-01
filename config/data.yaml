@@ -1,0 +1,27 @@
+# EddyFusion — 数据根路径与划分（命题方数据就绪后填写）
+meta:
+  project: "EddyFusion"
+  version: "1.0"
+
+paths:
+  raw_root: "data/raw"
+  processed_root: "data/processed"
+
+spatial:
+  lon_min: null   # 按命题方 NetCDF 或黄渤海范围填写
+  lon_max: null
+  lat_min: null
+  lat_max: null
+
+temporal:
+  time_step_hours: 6   # 与预处理一致
+
+split:
+  # 若命题方提供固定划分，改为 list 路径或名称映射
+  strategy: "time_outer"   # time_outer | fixed_files
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
+normalization:
+  stats_dir: "data/processed/stats"   # 全局均值方差等

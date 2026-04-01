@@ -1,0 +1,57 @@
+# 阶段交接与本地记录（见 AI_DEV_REQUIREMENTS.md）
+开发阶段文档/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 数据与权重（先取消忽略子目录，再忽略其内容、保留 .gitkeep）
+data/raw/*
+!data/raw/.gitkeep
+
+data/processed/*
+!data/processed/eddy/
+!data/processed/hydro/
+!data/processed/anomaly/
+data/processed/eddy/*
+!data/processed/eddy/.gitkeep
+data/processed/hydro/*
+!data/processed/hydro/.gitkeep
+data/processed/anomaly/*
+!data/processed/anomaly/.gitkeep
+
+outputs/*
+!outputs/eddy/
+!outputs/hydro/
+!outputs/anomaly/
+outputs/eddy/*
+!outputs/eddy/.gitkeep
+outputs/hydro/*
+!outputs/hydro/.gitkeep
+outputs/anomaly/*
+!outputs/anomaly/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.npz
+*.npy
+*.nc
+*.zarr
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 提交材料大文件（按需取消忽略）
+submission/**/*.mp4
+submission/**/*.pdf
