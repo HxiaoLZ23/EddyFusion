@@ -55,3 +55,7 @@ outputs/anomaly/*
 # 提交材料大文件（按需取消忽略）
 submission/**/*.mp4
 submission/**/*.pdf
+
+图片/
+服创数据集/
+相关文件/
