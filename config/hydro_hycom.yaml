@@ -1,0 +1,83 @@
+# 与「海域要素预测」HYCOM 日文件对齐的简化水文配置（仅 sst/sss/ssu/ssv → 四要素，无风速/波高）
+# 网格与示例 NetCDF 一致：lat 138 × lon 125；单文件 time=12，长序列需预处理多文件拼接
+
+meta:
+  project: "EddyFusion"
+  module: "hydro"
+  version: "1.0"
+  level: 2
+  seed: 42
+
+paths:
+  train_data: "data/processed/hydro/X_train.npz"
+  train_label: "data/processed/hydro/y_train.npz"
+  val_data: "data/processed/hydro/X_val.npz"
+  val_label: "data/processed/hydro/y_val.npz"
+  test_data: "data/processed/hydro/X_test.npz"
+  test_label: "data/processed/hydro/y_test.npz"
+  output_dir: "outputs/hydro"
+
+data:
+  input_features: ["temp", "sal", "u", "v"]
+  target_features: ["temp", "sal", "u", "v"]
+  input_days: 30
+  input_steps: 120
+  output_hours: [72, 96, 120]
+  output_steps: 20
+  grid_shape: [138, 125]
+  normalize:
+    temp: "zscore"
+    sal: "zscore"
+    u: "zscore"
+    v: "zscore"
+  num_workers: 4
+  pin_memory: true
+
+model:
+  name: "ConvLSTM_Hydro"
+  hidden_dim: 128
+  num_layers: 3
+  kernel_size: 3
+  dropout: 0.1
+  use_element_attention: true
+  element_attention_hidden: 64
+
+mot:
+  enabled: false
+
+attn_res:
+  enabled: false
+  type: "block"
+  num_blocks: 8
+
+loss:
+  base: "mse"
+  mae_weight: 0.1
+  eos_constraint:
+    enabled: false
+    weight: 0.1
+    mode: "soft"
+
+train:
+  device: "cuda"
+  epochs: 60
+  batch_size: 2
+  optimizer: "adamw"
+  lr: 0.0002
+  weight_decay: 0.01
+  scheduler: "cosine"
+  warmup_epochs: 3
+  grad_clip_norm: 1.0
+  amp: true
+  early_stop_patience: 10
+  log_interval: 50
+  save_best_by: "val_nrmse_avg"
+  checkpoint_every_epoch: 1
+
+eval:
+  metrics: ["rmse", "nrmse", "mae"]
+  report_horizons_hours: [72, 96, 120]
+  save_preds: true
+  save_metrics_json: true
+  metrics_file: "outputs/hydro/metrics_summary.json"
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled"]

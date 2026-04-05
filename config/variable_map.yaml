@@ -1,0 +1,19 @@
+# 命题方 NetCDF 变量名 → 项目内部统一名（水文/预处理读取用）
+# 来源示例：服创数据集/海域要素预测/1994/19940101.nc（HYCOM，CF-1.6）
+
+source_dataset: "海域要素预测"
+source_format: "HYCOM NetCDF"
+
+# 文件内变量 → 与 config/hydro.yaml 中 data.input_features / target_features 对齐的内部键
+netcdf_to_internal:
+  sst: "temp"    # 海表温度
+  sss: "sal"     # 海表盐度（命题方用 sss，内部仍称 sal）
+  ssu: "u"       # 海表 u 分量
+  ssv: "v"       # 海表 v 分量
+
+# 说明：当前单日 .nc 中未见风速/波高；若赛题要求六要素输入，需从「风-浪异常识别」或其它再分析数据对齐时空后合并，或先用四要素（temp/sal/u/v）跑通基线。
+
+dimensions_example:
+  time: 12
+  lat: 138
+  lon: 125

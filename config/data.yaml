@@ -11,10 +11,11 @@ paths:
   processed_root: "data/processed"
 
 spatial:
-  lon_min: null   # 按命题方 NetCDF 或黄渤海范围填写
-  lon_max: null
-  lat_min: null
-  lat_max: null
+  # 海域要素预测示例文件（19940101.nc）经纬度范围，命题方若有差异以实测为准
+  lon_min: 117.0
+  lon_max: 127.0
+  lat_min: 31.04
+  lat_max: 41.0
 
 temporal:
   time_step_hours: 6   # 与预处理一致
