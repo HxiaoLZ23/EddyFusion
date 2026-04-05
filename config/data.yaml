@@ -6,6 +6,8 @@ meta:
 paths:
   # 命题方数据目录（仓库根目录下）
   raw_root: "服创数据集"
+  # 水文/海域 NetCDF 常在子目录下，名称以本机为准（如「水文要素预测」或「海域要素预测」）
+  hydro_subdir: null
   processed_root: "data/processed"
 
 spatial:

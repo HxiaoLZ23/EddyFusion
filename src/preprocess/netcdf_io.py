@@ -7,6 +7,39 @@ from pathlib import Path
 from src.utils.config import load_yaml, project_root, resolve_path
 
 
+def _resolve_path_arg(root: Path, user: str) -> Path:
+    """将命令行路径解析为绝对 Path（支持相对仓库根目录）。"""
+    text = user.strip().strip('"').strip("'")
+    p = Path(text).expanduser()
+    if p.is_absolute():
+        return p
+    return (root / p).resolve()
+
+
+def _find_nc_by_basename(raw_root: Path, basename: str, limit: int = 15) -> list[Path]:
+    """在 raw_root 下按文件名匹配（用于路径写错时的提示）。"""
+    if not raw_root.is_dir():
+        return []
+    out: list[Path] = []
+    for cand in raw_root.rglob(basename):
+        if cand.is_file():
+            out.append(cand)
+            if len(out) >= limit:
+                break
+    return out
+
+
+def _list_subdirs(p: Path, max_items: int = 30) -> str:
+    if not p.is_dir():
+        return f"(不存在: {p})"
+    names = sorted(x.name for x in p.iterdir() if x.is_dir())
+    if not names:
+        return "(无子目录)"
+    tail = f"\n  … 共 {len(names)} 个" if len(names) > max_items else ""
+    shown = names[:max_items]
+    return "\n  - " + "\n  - ".join(shown) + tail
+
+
 def _iter_nc_files(raw_root: Path) -> list[Path]:
     if not raw_root.is_dir():
         return []
@@ -19,7 +52,8 @@ def _iter_nc_files(raw_root: Path) -> list[Path]:
 def inspect_file(path: Path) -> None:
     import xarray as xr
 
-    ds = xr.open_dataset(path)
+    # 显式 engine，避免部分环境下后端推断异常
+    ds = xr.open_dataset(path, engine="netcdf4")
     print(f"=== {path} ===")
     print(ds)
     print("dims:", dict(ds.sizes))
@@ -42,11 +76,22 @@ def main() -> None:
     raw_root = resolve_path(cfg.get("paths", {}).get("raw_root", "data/raw"))
 
     if args.path:
-        p = Path(args.path)
-        if not p.is_absolute():
-            p = root / p
+        p = _resolve_path_arg(root, args.path)
         if not p.is_file():
             print(f"文件不存在: {p}", file=sys.stderr)
+            if raw_root.is_dir():
+                print(f"\n「{raw_root.name}」下的一级子目录为：{_list_subdirs(raw_root)}", file=sys.stderr)
+                print(
+                    "\n提示：若目录名为「水文要素预测」而非「海域要素预测」（或相反），请改正 --path 中的文件夹名。",
+                    file=sys.stderr,
+                )
+            base = Path(args.path).name
+            if base.endswith(".nc") and raw_root.is_dir():
+                hits = _find_nc_by_basename(raw_root, base)
+                if hits:
+                    print(f"\n在「{raw_root}」下找到同名文件（可改用其一）：", file=sys.stderr)
+                    for h in hits[:10]:
+                        print(f"  {h}", file=sys.stderr)
             sys.exit(1)
         inspect_file(p)
         return
