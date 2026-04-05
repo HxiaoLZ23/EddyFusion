@@ -36,6 +36,8 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 
 命题方原始数据目录在 `config/data.yaml` 的 `paths.raw_root`（默认 **`服创数据集/`**），预处理脚本会递归扫描其下 `*.nc`。
 
+**Windows + 中文路径**：若资源管理器能打开 `.nc` 但 `netcdf_io` 报错，脚本已自动尝试短路径与临时英文副本；请在 **`F:\创赛`**（仓库根）下执行命令，或使用正斜杠：`--path 服创数据集/海域要素预测/1994/19940101.nc`。
+
 在仓库根目录执行 `python -m ...`（Windows / Linux 均如此）。
 
 ## 目录结构
@@ -58,7 +60,9 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 1. 预处理：`bash scripts/run_preprocess.sh`（或分步执行 `python -m src.preprocess.*`）
 2. 训练：`bash scripts/run_eddy_train.sh` 等
 3. 评估：`bash scripts/run_eval_all.sh`（需各模块已产出 `outputs/*/best.pt`）
-4. 演示：`python -m src.demo.app_gradio`（实现后）
+4. 演示：`python -m src.demo.app_gradio`  
+   - **界面开发说明**（功能清单、Gradio/Streamlit、验收标准、与配置衔接）见 **`相关文件/A09-项目开发文档.md` 第 5.4 节**。  
+   - 当前若入口仍为占位，需按该节完成 P0 后再用于正式录屏；无全量数据时可先用合成/烟测与占位流程保证可启动。
 
 ## 远程仓库
 
