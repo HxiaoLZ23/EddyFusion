@@ -55,6 +55,20 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 
 全量数据就绪后：预处理 → 各模块 `train` / `eval`，详见 `scripts/*.sh`。
 
+### 命题方海域要素预测（HYCOM NetCDF → 水文 npz）
+
+需已配置 `config/data.yaml` 中 `paths.raw_root`（默认 `服创数据集`）与 `hydro_subdir`（默认 `海域要素预测`）。**单文件 time 步数可能因日而异**，拼接后总长度须 ≥ `input_steps + output_steps`（`hydro_hycom.yaml` 默认为 140）。
+
+```powershell
+# 示例：先用 20 个日文件、滑窗步长 24，生成 data/processed/hydro/*.npz
+python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --max-daily-files 20 --stride 24
+
+python -m src.hydro.train --config config/hydro_hycom.yaml
+python -m src.hydro.eval --config config/hydro_hycom.yaml --ckpt outputs/hydro/best.pt
+```
+
+全量处理时可在 `config/data.yaml` 的 `hydro_preprocess.max_daily_files` 设为 `null`，并酌情调大 `window_stride` 控制样本量。138×125 网格在 **CPU** 上训练极慢，建议使用 **GPU**。
+
 ## 运行顺序（数据就绪后）
 
 1. 预处理：`bash scripts/run_preprocess.sh`（或分步执行 `python -m src.preprocess.*`）

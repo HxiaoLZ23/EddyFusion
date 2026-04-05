@@ -29,3 +29,10 @@ split:
 
 normalization:
   stats_dir: "data/processed/stats"   # 全局均值方差等
+
+# 水文：从海域要素预测 NetCDF 生成 npz 时的可选限制（null 表示不限制）
+hydro_preprocess:
+  # 仅处理排序后的前 N 个日文件；开发机可先设为 120～400，全量设为 null
+  max_daily_files: null
+  # 滑窗起点步长；12 表示约每「日文件」取一个窗口（单日 12 时刻时）
+  window_stride: 1

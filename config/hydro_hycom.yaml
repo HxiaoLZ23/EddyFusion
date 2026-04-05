@@ -30,8 +30,8 @@ data:
     sal: "zscore"
     u: "zscore"
     v: "zscore"
-  num_workers: 4
-  pin_memory: true
+  num_workers: 0
+  pin_memory: false
 
 model:
   name: "ConvLSTM_Hydro"
