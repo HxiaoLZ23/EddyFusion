@@ -29,8 +29,9 @@ split:
   test_ratio: 0.1
 
 # 海域要素预测：参赛方划分（见 服创数据集/数据集说明.md 第二节）
+# 正式对照实验请保持 enabled: true；仅本地烟测可暂改 false 并用 split 比例划分
 hydro_year_split:
-  enabled: false
+  enabled: true
   train:
     min_year: 1994
     max_year: 2013

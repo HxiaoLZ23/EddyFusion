@@ -81,11 +81,11 @@ python -m src.preprocess.hydro_dataset \
   --from-nc --data-config config/data.yaml \
   --max-daily-files 120 --stride 24
 
-# 全量：先在 config/data.yaml 将 hydro_preprocess.max_daily_files 设为 null（或删去限制），再：
-# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --stride 1
+# 全量：先在 config/data.yaml 将 hydro_preprocess.max_daily_files 设为 null，stride 仍建议 ≥12（全量 stride=1 内存极大）
+# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --stride 24
 
 # 按命题方年份划分训练/验证/测试时，先启用 data.yaml 的 hydro_year_split.enabled，再：
-# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --year-split --stride 1
+# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --year-split --stride 24
 ```
 
 **4. 训练**
@@ -152,3 +152,14 @@ git push -u origin main
 ## 数据与权重
 
 `data/raw/`、`data/processed/` 下大文件与 `outputs/` 权重默认不提交；见 `.gitignore`。
+
+## 文档索引（与当前实现对齐）
+
+| 文档 | 内容 |
+|------|------|
+| `docs/命题方数据集说明.md` | 命题方海区、变量、划分、指标摘要 |
+| `docs/实施过程与局限性.md` | 各模块 Level、水文局限（缺测/内存/显存/划分） |
+| `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
+| `docs/系统架构说明.md` | 数据流与目录职责 |
+| `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
+| `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |

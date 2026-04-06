@@ -19,7 +19,8 @@
 
 - **路径示例**：`服创数据集/海域要素预测/1994/19940101.nc`
 - **维度**：`time`×`lat`×`lon` = 12×138×125（示例文件）；`time` 为 `datetime64`。
-- **变量（命题方名称）**：**SST、SSS、SSU、SSV**（NetCDF 内多为小写 `sst`/`sss`/`sss` 等，**命名映射见 `config/variable_map.yaml`**）。
+- **变量（命题方名称）**：**SST、SSS、SSU、SSV**。NetCDF 内实际变量名因文件而异，**以 `config/variable_map.yaml` 候选列表为准**（盐度常见为三小写 **s** 连续；东/北向流速对应 `ssu` / 小写 **ssv**）。
+- **缺测**：`short` 型常带 `_FillValue`（如 −30000），陆地格点解码后多为 **NaN**；预处理会统计并替换非有限值，Z-score 对 nan 做稳健估计，详见 `docs/实施过程与局限性.md`。
 - **分辨率**：命题方说明为 **hourly**；**输出为未来 72 小时**（与 `config/hydro_hycom.yaml` 中 `output_steps: 72` 对齐）。
 - **指标**：命题方「均方误差」指 **NRMSE**。
 - **划分**：训练 **1994～2013**，验证 **2015**，测试 **2014**（见 `config/data.yaml` 的 `hydro_year_split`）；**勿用验证集参与训练**。

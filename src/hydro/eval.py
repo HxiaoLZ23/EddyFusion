@@ -15,9 +15,13 @@ from src.utils.metrics import write_metrics_json
 
 
 @torch.no_grad()
-def run_eval(cfg: dict, ckpt: Path, device: torch.device) -> dict:
+def run_eval(cfg: dict, ckpt: Path, device: torch.device, split: str = "val") -> dict:
     paths = cfg["paths"]
-    ds = HydroNpzDataset(paths["val_data"], paths["val_label"])
+    sx = f"{split}_data"
+    sy = f"{split}_label"
+    if sx not in paths or sy not in paths:
+        raise KeyError(f"配置 paths 中缺少 {sx}/{sy}，无法评估 split={split}")
+    ds = HydroNpzDataset(paths[sx], paths[sy])
     loader = DataLoader(ds, batch_size=4, shuffle=False, num_workers=0)
     model = build_model(cfg).to(device)
     try:
@@ -42,17 +46,30 @@ def run_eval(cfg: dict, ckpt: Path, device: torch.device) -> dict:
     names = cfg["data"]["target_features"]
     nrmse_dict = {names[i]: float(nrmse[i]) for i in range(len(names))}
     avg = float(np.mean(nrmse))
-    return {
+    out = {
         "rmse_per_feature": {names[i]: float(np.sqrt(se[i])) for i in range(len(names))},
         "nrmse_per_feature": nrmse_dict,
-        "val_nrmse_avg": avg,
+        "nrmse_avg": avg,
+        "split": split,
     }
+    if split == "val":
+        out["val_nrmse_avg"] = avg
+    else:
+        out["test_nrmse_avg"] = avg
+    return out
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/hydro.yaml")
+    parser.add_argument("--config", type=str, default="config/hydro_hycom.yaml")
     parser.add_argument("--ckpt", type=str, default="outputs/hydro/best.pt")
+    parser.add_argument(
+        "--split",
+        type=str,
+        choices=("val", "test"),
+        default="val",
+        help="使用 paths 中 val_* 或 test_* npz 做评估",
+    )
     args = parser.parse_args()
 
     cfg = load_yaml(args.config)
@@ -66,7 +83,7 @@ def main() -> None:
         raise FileNotFoundError(hint)
 
     device = torch.device(pick_device(cfg["train"].get("device", "cuda")))
-    metrics = run_eval(cfg, ckpt, device)
+    metrics = run_eval(cfg, ckpt, device, split=args.split)
 
     level = int(cfg["meta"]["level"])
     tags = {
@@ -74,17 +91,23 @@ def main() -> None:
         "mot.enabled": cfg.get("mot", {}).get("enabled"),
         "attn_res.enabled": cfg.get("attn_res", {}).get("enabled"),
     }
-    passed = metrics["val_nrmse_avg"] <= 0.15  # 赛题 MSE 口径近似：以 NRMSE 作参考阈值
+    avg_key = "val_nrmse_avg" if args.split == "val" else "test_nrmse_avg"
+    avg_n = metrics.get(avg_key) or metrics.get("nrmse_avg", 0.0)
+    passed = avg_n <= 0.15  # 赛题 MSE 口径近似：以 NRMSE 作参考阈值
 
-    out = cfg.get("eval", {}).get("metrics_file", "outputs/hydro/metrics_summary.json")
+    mf = cfg.get("eval", {}).get("metrics_file", "outputs/hydro/metrics_summary.json")
+    mp = resolve_path(mf)
+    # 验证集 / 测试集分文件记录，避免互相覆盖
+    out_json = mp.parent / f"{mp.stem}_{args.split}{mp.suffix}"
     write_metrics_json(
-        out,
+        out_json,
         module="hydro",
         level=level,
         metrics=metrics,
         passed=passed,
-        tags=tags,
+        tags={**tags, "eval_split": args.split},
     )
+    print(f"wrote {out_json}")
     print("metrics:", metrics)
 
 
