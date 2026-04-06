@@ -99,7 +99,35 @@ def build_from_netcdf(
         if not train_files:
             raise FileNotFoundError("训练年文件列表为空，请检查海域要素预测目录与 hydro_year_split")
 
-        meta: dict[str, Any] = {"split_mode": "proposition_years", "hydro_year_split": ysplit}
+        hp_pre = data_cfg.get("hydro_preprocess") or {}
+        mt_cap = hp_pre.get("max_train_daily_files")
+        train_files_orig_n = len(train_files)
+        if mt_cap is not None and int(mt_cap) > 0 and len(train_files) > int(mt_cap):
+            print(
+                f"按 hydro_preprocess.max_train_daily_files={mt_cap} 截断训练日文件 "
+                f"（原 {train_files_orig_n} 个），避免拼接场 OOM；需全量请增大该值或设 null 并确保内存。",
+                flush=True,
+            )
+            train_files = train_files[: int(mt_cap)]
+
+        gh, gw = int(d["grid_shape"][0]), int(d["grid_shape"][1])
+        c_ch = len(feats)
+        avg_tf = float(hp_pre.get("avg_time_steps_per_file", 24))
+        T_est = int(len(train_files) * avg_tf)
+        field_gb = T_est * gh * gw * c_ch * 4 / (1024**3)
+        print(
+            f"预估拼接场 float32 内存约 {field_gb:.1f} GiB（T≈{T_est}，来自 {len(train_files)} 个训练日文件 × 约 {avg_tf} 步/文件）。"
+            f"若进程被 Killed 多为 OOM，请减小 max_train_daily_files 或 window_stride。",
+            flush=True,
+        )
+
+        meta: dict[str, Any] = {
+            "split_mode": "proposition_years",
+            "hydro_year_split": ysplit,
+            "max_train_daily_files": mt_cap,
+            "train_daily_files_discovered": train_files_orig_n,
+            "train_daily_files_used": len(train_files),
+        }
         splits_data: dict[str, tuple[np.ndarray, np.ndarray, dict[str, Any]]] = {}
         for split_name, flist in (
             ("train", train_files),
