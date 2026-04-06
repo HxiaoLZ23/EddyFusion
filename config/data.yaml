@@ -46,8 +46,11 @@ hydro_preprocess:
   # 仅处理排序后的前 N 个日文件；开发机可先设为 120～400，全量设为 null
   max_daily_files: null
   # 命题方年份划分时训练年文件可达数千个，一次性拼接场 (T,H,W,C) 会占数十～数百 GiB 被 OOM Killer 终止。
-  # 设为正整数则训练集仅取排序后的前 N 个日文件（val/test 不受影响）。全量需大内存机器或待实现分片预处理。
+  # 设为正整数则训练集仅取排序后的前 N 个日文件。全量需大内存机器或待实现分片预处理。
   max_train_daily_files: 800
+  # 可选：限制验证/测试年使用的日文件数（null=不截断）。滑窗张量仍可能达数十 GiB，见文档「分 split 写出」。
+  max_val_daily_files: null
+  max_test_daily_files: null
   # 滑窗起点步长。stride=1 时窗口数 N≈T−240，138×125×4 网格下内存可达百 GB；一般试跑用 12～24
   window_stride: 24
   # 估算拼接场时间维时用（每文件平均 time 步数，无法预知时可保持 24）

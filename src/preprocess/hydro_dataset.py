@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 from pathlib import Path
@@ -128,38 +129,90 @@ def build_from_netcdf(
             "train_daily_files_discovered": train_files_orig_n,
             "train_daily_files_used": len(train_files),
         }
-        splits_data: dict[str, tuple[np.ndarray, np.ndarray, dict[str, Any]]] = {}
-        for split_name, flist in (
-            ("train", train_files),
-            ("val", val_files),
-            ("test", test_files),
-        ):
-            if not flist:
-                print(f"警告: 划分 {split_name} 无 NetCDF 文件，跳过写出", file=sys.stderr)
-                continue
-            field, mpart = stack_hydro_fields(flist, feats)
-            print(f"[{split_name}] 拼接场 (T,H,W,C)={field.shape}")
-            x_sp, y_sp = build_windows(field, tin, tout, stride=window_stride)
-            print(f"[{split_name}] 滑窗 N={x_sp.shape[0]}, stride={window_stride}")
-            splits_data[split_name] = (x_sp, y_sp, mpart)
 
-        if "train" not in splits_data:
-            raise RuntimeError("训练集为空，无法估计标准化参数")
+        mv_cap = hp_pre.get("max_val_daily_files")
+        val_files_orig_n = len(val_files)
+        if mv_cap is not None and int(mv_cap) > 0 and len(val_files) > int(mv_cap):
+            print(
+                f"按 hydro_preprocess.max_val_daily_files={mv_cap} 截断验证日文件 "
+                f"（原 {val_files_orig_n} 个）。",
+                flush=True,
+            )
+            val_files = val_files[: int(mv_cap)]
+        mt_cap_test = hp_pre.get("max_test_daily_files")
+        test_files_orig_n = len(test_files)
+        if mt_cap_test is not None and int(mt_cap_test) > 0 and len(test_files) > int(mt_cap_test):
+            print(
+                f"按 hydro_preprocess.max_test_daily_files={mt_cap_test} 截断测试日文件 "
+                f"（原 {test_files_orig_n} 个）。",
+                flush=True,
+            )
+            test_files = test_files[: int(mt_cap_test)]
+        meta["max_val_daily_files"] = mv_cap
+        meta["val_daily_files_discovered"] = val_files_orig_n
+        meta["val_daily_files_used"] = len(val_files)
+        meta["max_test_daily_files"] = mt_cap_test
+        meta["test_daily_files_discovered"] = test_files_orig_n
+        meta["test_daily_files_used"] = len(test_files)
 
-        x_tr, y_tr, _ = splits_data["train"]
+        paths_hydro = hydro["paths"]
+        stats_dir = resolve_path(data_cfg.get("normalization", {}).get("stats_dir", "data/processed/stats"))
+        ensure_dir(stats_dir)
+        stats_npz = stats_dir / "hydro_zscore.npz"
+
+        # 按 split 顺序处理并尽快写出，避免 train/val/test 滑窗张量同时驻留内存导致 OOM
+        field_tr, mpart = stack_hydro_fields(train_files, feats)
+        print(f"[train] 拼接场 (T,H,W,C)={field_tr.shape}")
+        x_tr, y_tr = build_windows(field_tr, tin, tout, stride=window_stride)
+        del field_tr
+        gc.collect()
+        print(f"[train] 滑窗 N={x_tr.shape[0]}, stride={window_stride}")
+
         mean, std = zscore_fit(x_tr)
         x_tr = apply_zscore(x_tr, mean, std)
         y_tr = apply_zscore(y_tr, mean, std)
+        np.savez_compressed(stats_npz, mean=mean, std=std, features=feats)
 
-        z_splits: dict[str, tuple[np.ndarray, np.ndarray]] = {"train": (x_tr, y_tr)}
-        for name in ("val", "test"):
-            if name not in splits_data:
-                continue
-            x_raw, y_raw, _ = splits_data[name]
-            z_splits[name] = (apply_zscore(x_raw, mean, std), apply_zscore(y_raw, mean, std))
+        xp = resolve_path(paths_hydro["train_data"])
+        yp = resolve_path(paths_hydro["train_label"])
+        ensure_dir(xp.parent)
+        np.savez_compressed(xp, X=x_tr)
+        np.savez_compressed(yp, y=y_tr)
+        print(f"wrote {xp} / {yp} shapes X={x_tr.shape} y={y_tr.shape}")
+        del x_tr, y_tr
+        gc.collect()
 
-        meta.update(splits_data["train"][2])
+        meta.update(mpart)
         meta["files_used_train"] = meta.get("files_used", 0)
+
+        for split_name, flist in (("val", val_files), ("test", test_files)):
+            if not flist:
+                print(f"警告: 划分 {split_name} 无 NetCDF 文件，跳过写出", file=sys.stderr)
+                continue
+            field, _ = stack_hydro_fields(flist, feats)
+            print(f"[{split_name}] 拼接场 (T,H,W,C)={field.shape}")
+            x_sp, y_sp = build_windows(field, tin, tout, stride=window_stride)
+            del field
+            gc.collect()
+            print(f"[{split_name}] 滑窗 N={x_sp.shape[0]}, stride={window_stride}")
+            x_sp = apply_zscore(x_sp, mean, std)
+            y_sp = apply_zscore(y_sp, mean, std)
+            xp = resolve_path(paths_hydro[f"{split_name}_data"])
+            yp = resolve_path(paths_hydro[f"{split_name}_label"])
+            ensure_dir(xp.parent)
+            np.savez_compressed(xp, X=x_sp)
+            np.savez_compressed(yp, y=y_sp)
+            print(f"wrote {xp} / {yp} shapes X={x_sp.shape} y={y_sp.shape}")
+            del x_sp, y_sp
+            gc.collect()
+
+        meta_out = dict(meta)
+        meta_out["hydro_config"] = str(hydro_cfg_path)
+        meta_out["window_stride"] = window_stride
+        with (stats_dir / "hydro_preprocess_meta.json").open("w", encoding="utf-8") as f:
+            json.dump(meta_out, f, ensure_ascii=False, indent=2, default=str)
+        print(f"统计量: {stats_npz}")
+        return
 
     else:
         nc_list = discover_hydro_nc_paths(raw_root, hydro_sub, max_daily_files=max_daily_files)
@@ -202,7 +255,7 @@ def build_from_netcdf(
     ensure_dir(stats_dir)
     stats_npz = stats_dir / "hydro_zscore.npz"
     np.savez_compressed(stats_npz, mean=mean, std=std, features=feats)
-    meta_out = dict(meta) if use_prop else meta
+    meta_out = dict(meta)
     meta_out["hydro_config"] = str(hydro_cfg_path)
     meta_out["window_stride"] = window_stride
     with (stats_dir / "hydro_preprocess_meta.json").open("w", encoding="utf-8") as f:
