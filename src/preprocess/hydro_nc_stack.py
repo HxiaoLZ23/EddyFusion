@@ -189,26 +189,65 @@ def split_train_val_test(
 
 def zscore_fit(
     x_train: np.ndarray,
+    *,
+    chunk_n: int = 32,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """对 (N,T,H,W,C) 在 N,T,H,W 上求每通道 mean/std（忽略 nan，避免 mean/std 为 nan）。"""
-    x = np.asarray(x_train, dtype=np.float64)
-    if not np.isfinite(x).all():
-        n_bad = int(np.size(x) - np.sum(np.isfinite(x)))
+    """对 (N,T,H,W,C) 在 N,T,H,W 上求每通道 mean/std（忽略 nan，与 nanmean/nanstd 一致）。
+
+    按 N 维分块累加，避免整幅 ``astype(float64)`` 复制导致峰值内存翻倍（大样本预处理时易 OOM）。
+    """
+    x_train = np.asarray(x_train, dtype=np.float32)
+    c = x_train.shape[-1]
+    n0 = x_train.shape[0]
+    cn = max(1, min(int(chunk_n), n0))
+
+    if not np.isfinite(x_train).all():
+        n_bad = int(np.size(x_train) - np.sum(np.isfinite(x_train)))
         print(
-            f"警告: 训练张量仍含 {n_bad} 个非有限值，Z-score 前已清理。",
+            f"警告: 训练张量仍含 {n_bad} 个非有限值，Z-score 按块统计时忽略非有限位置。",
             flush=True,
         )
-        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
-    mean = np.nanmean(x, axis=(0, 1, 2, 3), keepdims=True)
-    std = np.nanstd(x, axis=(0, 1, 2, 3), keepdims=True)
-    mean = np.nan_to_num(mean, nan=0.0)
-    std = np.nan_to_num(std, nan=1.0, posinf=1.0, neginf=1.0)
-    std = np.where(std < 1e-6, 1.0, std)
+
+    sum_x = np.zeros(c, dtype=np.float64)
+    cnt = np.zeros(c, dtype=np.float64)
+    for i in range(0, n0, cn):
+        sl = x_train[i : i + cn]
+        fin = np.isfinite(sl)
+        sum_x += np.sum(np.where(fin, sl.astype(np.float64), 0.0), axis=(0, 1, 2, 3))
+        cnt += np.sum(fin, axis=(0, 1, 2, 3)).astype(np.float64)
+
+    mean_1d = np.divide(sum_x, cnt, out=np.zeros_like(sum_x), where=cnt > 0)
+    mean_1d = np.nan_to_num(mean_1d, nan=0.0)
+    mean = mean_1d.reshape(1, 1, 1, 1, c).astype(np.float64)
+
+    sum_sq = np.zeros(c, dtype=np.float64)
+    for i in range(0, n0, cn):
+        sl = x_train[i : i + cn].astype(np.float64)
+        fin = np.isfinite(sl)
+        diff = np.where(fin, sl - mean, 0.0)
+        sum_sq += np.sum(diff**2, axis=(0, 1, 2, 3))
+
+    var = np.divide(sum_sq, cnt, out=np.ones_like(sum_sq), where=cnt > 0)
+    var = np.maximum(var, 0.0)
+    std_1d = np.sqrt(var)
+    std_1d = np.nan_to_num(std_1d, nan=1.0, posinf=1.0, neginf=1.0)
+    std_1d = np.where(std_1d < 1e-6, 1.0, std_1d)
+    std = std_1d.reshape(1, 1, 1, 1, c)
+
     return mean.astype(np.float32), std.astype(np.float32)
 
 
-def apply_zscore(x: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
-    out = (x.astype(np.float64) - mean) / std
-    if not np.isfinite(out).all():
-        out = np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
-    return out.astype(np.float32)
+def apply_zscore(x: np.ndarray, mean: np.ndarray, std: np.ndarray, *, chunk_n: int = 32) -> np.ndarray:
+    """原地按 N 维分块 Z-score，避免整幅 float64 临时数组。"""
+    x = np.asarray(x, dtype=np.float32)
+    n0 = x.shape[0]
+    cn = max(1, min(int(chunk_n), n0))
+    mu = mean.astype(np.float64)
+    sd = std.astype(np.float64)
+    for i in range(0, n0, cn):
+        sl = x[i : i + cn].astype(np.float64)
+        part = (sl - mu) / sd
+        if not np.isfinite(part).all():
+            part = np.nan_to_num(part, nan=0.0, posinf=0.0, neginf=0.0)
+        x[i : i + cn] = part.astype(np.float32)
+    return x
