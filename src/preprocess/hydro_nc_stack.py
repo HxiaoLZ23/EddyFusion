@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -134,9 +135,26 @@ def build_windows(
         )
     starts = list(range(0, t - need + 1, stride))
     n = len(starts)
+    item = np.dtype(np.float32).itemsize
+    bytes_xy = n * (input_steps + output_steps) * h * w * c * item
+    gib = bytes_xy / (1024**3)
+    print(
+        f"滑窗: N={n}, stride={stride}, 预计数组 X+y 约 {gib:.2f} GiB（float32）；"
+        f"若过大将极慢或似卡死，请加大 --stride 或减少日文件数。",
+        flush=True,
+    )
+    if gib > 8:
+        print(
+            "警告: 建议 --stride 12～24（或更大）以减小 N；全量训练可后续用 Dataset 按需读 nc。",
+            file=sys.stderr,
+            flush=True,
+        )
     x = np.empty((n, input_steps, h, w, c), dtype=np.float32)
     y = np.empty((n, output_steps, h, w, c), dtype=np.float32)
+    report_every = max(1, min(500, n // 20))
     for i, s in enumerate(starts):
+        if i % report_every == 0 or i == n - 1:
+            print(f"  滑窗填充 {i + 1}/{n}", flush=True)
         x[i] = field[s : s + input_steps]
         y[i] = field[s + input_steps : s + input_steps + output_steps]
     return x, y

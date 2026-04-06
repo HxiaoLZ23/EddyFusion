@@ -40,9 +40,73 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 
 在仓库根目录执行 `python -m ...`（Windows / Linux 均如此）。
 
+### 云服务器（AutoDL 等）
+
+- 项目目录名：**EddyFusion**（注意大小写；Linux 下 `Eddyfusion` 与 `EddyFusion` 为不同路径）
+- 典型克隆/工作路径：`~/autodl-tmp/EddyFusion`（root 用户下为 `/root/autodl-tmp/EddyFusion`）
+- 下文与脚本中的「仓库根」在云服务器上即指上述路径。
+- **命题方数据位置二选一即可**（`config/data.yaml` 默认 `paths.raw_root: "服创数据集"`，相对仓库根解析）：
+  - **放在仓库内**：`~/autodl-tmp/EddyFusion/服创数据集/`（与 `config/` 同级），则**无需**运行 `setup_fuchuang_to_data.sh`，预处理会直接读该目录。
+  - **放在仓库外**（如 `~/autodl-tmp/服创数据集`，避免占满系统盘）：用 `scripts/setup_fuchuang_to_data.sh` 的 `FU_MODE=link` 在仓库根创建软链 `服创数据集` → 实际数据目录。
+
+### 全流程命令（云服务器 · 命题方 NetCDF → 水文训练）
+
+以下均在仓库根执行（如 `cd ~/autodl-tmp/EddyFusion`），且已创建并激活 `.venv`、`pip install -r requirements.txt`。
+
+**1. 放入命题方数据**  
+将「服创数据集」解压/上传，使目录结构为 **`服创数据集/海域要素预测/.../*.nc`**（或命题方提供的其它子目录名，与 `config/data.yaml` 的 `hydro_subdir` 一致）。
+
+- **方式 A（推荐简单）**：直接放在 **EddyFusion 仓库根下**，即  
+  `~/autodl-tmp/EddyFusion/服创数据集/`  
+  与 `config/`、`src/` 同级。完成后**跳过**下面步骤 2。
+
+- **方式 B**：放在仓库外，例如 `~/autodl-tmp/服创数据集`（其下含 `海域要素预测/`）。**勿在系统盘空间不足时再向 `/data` 全量复制**；然后执行步骤 2 做软链。
+
+**2. 接到项目（仅方式 B：零拷贝软链）**
+
+```bash
+export FU_MODE=link
+export FU_CHUANG_SRC="$HOME/autodl-tmp/服创数据集"
+bash scripts/setup_fuchuang_to_data.sh
+```
+
+完成后仓库根会出现 `服创数据集` → 指向 `$FU_CHUANG_SRC`，`config/data.yaml` 的 `paths.raw_root` 无需改。
+
+**3. 预处理（生成 `data/processed/hydro/*.npz`）**
+
+```bash
+# 试跑：少量日文件；滑窗步长勿长期用 1（会生成巨量窗口、内存可达百 GB 级似卡死），建议 12～24
+python -m src.preprocess.hydro_dataset \
+  --config config/hydro_hycom.yaml \
+  --from-nc --data-config config/data.yaml \
+  --max-daily-files 120 --stride 24
+
+# 全量：先在 config/data.yaml 将 hydro_preprocess.max_daily_files 设为 null（或删去限制），再：
+# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --stride 1
+
+# 按命题方年份划分训练/验证/测试时，先启用 data.yaml 的 hydro_year_split.enabled，再：
+# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --year-split --stride 1
+```
+
+**4. 训练**
+
+```bash
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # 可选，缓解显存碎片
+python -m src.hydro.train --config config/hydro_hycom.yaml
+```
+
+**5. 评估**
+
+```bash
+python -m src.hydro.eval --config config/hydro_hycom.yaml --ckpt outputs/hydro/best.pt
+# 若训练过程出现 nan 未写出 best.pt，可改用: --ckpt outputs/hydro/last.pt
+```
+
+说明：单日日文件拼接后的总时间步须 ≥ `input_steps + output_steps`（见 `config/hydro_hycom.yaml`）；网格大时请用 GPU。
+
 ## 目录结构
 
-与《A09-项目开发文档》一致：`config/`、`data/`、`src/`、`scripts/`、`outputs/`、`docs/`、`submission/`。
+与《A09-项目开发文档》一致：`config/`、`data/`、`src/`、`scripts/`、`outputs/`、`docs/`、`submission/`。命题方原始数据可置于仓库根下 **`服创数据集/`**（默认不提交，见 `.gitignore`）。
 
 ## 阶段一：无命题方数据时的烟测（合成 / 内置小集）
 

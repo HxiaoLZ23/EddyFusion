@@ -1,6 +1,17 @@
 # 数据说明
 
-命题方数据集位于仓库根目录 **`服创数据集/`**（与 `config/data.yaml` 中 `paths.raw_root` 一致）。若需改用 `data/raw/`，请同步修改配置并更新本说明。预处理后产物写入 `data/processed/` 下 `eddy/`、`hydro/`、`anomaly/`。
+命题方数据集位于仓库根目录 **`服创数据集/`**（与 `config/data.yaml` 中 `paths.raw_root` 一致）。若需改用 `data/raw/`，请同步修改配置并更新本说明。
+
+**`data/processed/` 各子目录何时会有文件**
+
+| 子目录 | 含义 | 何时非空 |
+|--------|------|----------|
+| **`hydro/`** | 水文 ConvLSTM 用 npz | 执行 `python -m src.preprocess.hydro_dataset ... --from-nc` 后生成 `X_*.npz` / `y_*.npz`；**仅跑水文训练时只需本目录有数据** |
+| `eddy/` | 涡旋等 | 运行对应 `preprocess.eddy_*` 或项目内涡旋预处理脚本后 |
+| `anomaly/` | 风-浪异常等 | 运行对应 `preprocess.anomaly_*` 后 |
+| `stats/` | 标准化等统计量 | 水文预处理会写入如 `hydro_zscore.npz` |
+
+因此仅做 **HYCOM 水文**时，`config/hydro_hycom.yaml` 只读 **`data/processed/hydro/`**；**`anomaly/`、`eddy/` 为空是正常现象**。
 
 **参赛方正式说明**：请优先阅读 **`服创数据集/数据集说明.md`**；仓库内摘要见 **`docs/命题方数据集说明.md`**（含海区、划分、指标与输入输出约定）。
 

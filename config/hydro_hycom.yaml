@@ -8,6 +8,7 @@ meta:
   level: 2
   seed: 42
 
+# 仅使用 data/processed/hydro/（水文 npz）；anomaly/eddy 等子目录为空属正常，需另跑对应预处理才会写入
 paths:
   train_data: "data/processed/hydro/X_train.npz"
   train_label: "data/processed/hydro/y_train.npz"

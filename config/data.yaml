@@ -44,5 +44,5 @@ normalization:
 hydro_preprocess:
   # 仅处理排序后的前 N 个日文件；开发机可先设为 120～400，全量设为 null
   max_daily_files: null
-  # 滑窗起点步长；12 表示约每「日文件」取一个窗口（单日 12 时刻时）
-  window_stride: 1
+  # 滑窗起点步长。stride=1 时窗口数 N≈T−240，138×125×4 网格下内存可达百 GB；一般试跑用 12～24
+  window_stride: 24

@@ -33,6 +33,8 @@ fi
 
 if [[ ! -d "${SOURCE}" ]]; then
   echo "错误: 源目录不存在: ${SOURCE}"
+  echo "提示: Linux 路径区分大小写，项目目录须为 EddyFusion（Fusion 的 F 大写），不要写成 Eddyfusion。"
+  echo "      若数据已在仓库内 ~/autodl-tmp/EddyFusion/服创数据集/，则无需运行本脚本。"
   exit 1
 fi
 
