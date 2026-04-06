@@ -42,6 +42,8 @@ model:
   dropout: 0.1
   use_element_attention: true
   element_attention_hidden: 64
+  # 长序列(如 168 步)训练时显著降低激活显存；推理可关以提速
+  encoder_checkpoint: true
 
 mot:
   enabled: false
@@ -62,7 +64,10 @@ loss:
 train:
   device: "cuda"
   epochs: 60
-  batch_size: 2
+  # 长序列+高分辨率网格易 OOM；可配合 gradient_accumulation_steps 维持等效 batch
+  batch_size: 1
+  gradient_accumulation_steps: 2
+  eval_batch_size: 1
   optimizer: "adamw"
   lr: 0.0002
   weight_decay: 0.01

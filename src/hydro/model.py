@@ -23,4 +23,5 @@ def build_model(cfg: dict[str, Any]) -> HydroBaseline:
         dropout=float(m["dropout"]),
         use_element_attention=bool(m.get("use_element_attention", True)),
         element_attention_hidden=int(m.get("element_attention_hidden", 64)),
+        use_encoder_checkpoint=bool(m.get("encoder_checkpoint", False)),
     )

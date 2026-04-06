@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 
 
 class ConvLSTMCell(nn.Module):
@@ -65,11 +66,13 @@ class HydroBaseline(nn.Module):
         dropout: float = 0.1,
         use_element_attention: bool = True,
         element_attention_hidden: int = 64,
+        use_encoder_checkpoint: bool = False,
     ):
         super().__init__()
         self.t_out = t_out
         self.out_channels = out_channels
         self.use_element_attention = use_element_attention
+        self.use_encoder_checkpoint = use_encoder_checkpoint
 
         self.in_proj = nn.Conv2d(in_channels, hidden_dim, kernel_size=1)
         self.cells = nn.ModuleList(
@@ -91,30 +94,55 @@ class HydroBaseline(nn.Module):
         else:
             self.se = None
 
-        self.decoders = nn.ModuleList(
-            [
-                nn.Conv2d(hidden_dim, out_channels, kernel_size=3, padding=1)
-                for _ in range(t_out)
-            ]
-        )
+        # 单头输出 C*t_out，避免 72 次独立卷积与 stack 带来的显存与参数冗余
+        self.decoder = nn.Conv2d(hidden_dim, out_channels * t_out, kernel_size=3, padding=1)
+
+    def _encoder_step(
+        self,
+        x_t: torch.Tensor,
+        *states_flat: torch.Tensor,
+    ) -> tuple[torch.Tensor, ...]:
+        """单时间步：in_proj + 多层 ConvLSTM；返回 (feat, h0,c0, h1,c1, …)。"""
+        states: list[tuple[torch.Tensor, torch.Tensor]] = []
+        for i in range(0, len(states_flat), 2):
+            states.append((states_flat[i], states_flat[i + 1]))
+        cur = self.in_proj(x_t)
+        inp = cur
+        new_flat: list[torch.Tensor] = []
+        for li, cell in enumerate(self.cells):
+            inp, s = cell(inp, states[li])
+            new_flat.extend([s[0], s[1]])
+        return (inp, *new_flat)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: B T C H W
-        _, t, _, _, _ = x.shape
-        states: list[tuple[torch.Tensor, torch.Tensor] | None] = [None] * len(self.cells)
-        inp = None
+        b, t, _, height, width = x.shape
+        hid = self.cells[0].hidden_channels
+        device, dtype = x.device, x.dtype
+        # 与 state=None 时 ConvLSTMCell 内部零初始化一致，便于 checkpoint 只传入 Tensor
+        states_flat: list[torch.Tensor] = [
+            torch.zeros(b, hid, height, width, device=device, dtype=dtype)
+            for _ in range(2 * len(self.cells))
+        ]
+
         for ti in range(t):
-            cur = self.in_proj(x[:, ti])
-            inp = cur
-            for li, cell in enumerate(self.cells):
-                inp, states[li] = cell(inp, states[li])
+            if self.use_encoder_checkpoint and self.training:
+                packed = checkpoint(
+                    self._encoder_step,
+                    x[:, ti],
+                    *states_flat,
+                    use_reentrant=False,
+                )
+            else:
+                packed = self._encoder_step(x[:, ti], *states_flat)
+            inp = packed[0]
+            states_flat = list(packed[1:])
 
         feat = self.drop(inp)
         if self.se is not None:
             w_att = self.se(feat)
             feat = feat * w_att
 
-        outs = []
-        for dec in self.decoders:
-            outs.append(dec(feat))
-        return torch.stack(outs, dim=1)
+        dec = self.decoder(feat)
+        _, _, hh, ww = dec.shape
+        return dec.view(b, self.t_out, self.out_channels, hh, ww)
