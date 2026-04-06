@@ -189,12 +189,19 @@ def main() -> None:
             model, train_loader, device, optimizer, scaler, grad_clip, grad_accum
         )
         val_nrmse = validate(model, val_loader, device)
-        if stepped:
+        # GradScaler 在梯度为 inf/nan 时会跳过 optimizer.step()，但仍可能 stepped=True；
+        # 仅当训练损失有限时才推进 scheduler，避免「scheduler 先于 optimizer」类告警。
+        if stepped and math.isfinite(tr_loss):
             scheduler.step()
-        elif ep == 1:
+        elif ep == 1 and not stepped:
             print(
                 "警告: 本 epoch 未执行 optimizer.step()（训练 DataLoader 是否为空？）"
                 " 已跳过 scheduler.step()。",
+                flush=True,
+            )
+        elif ep == 1 and stepped and not math.isfinite(tr_loss):
+            print(
+                "提示: train_mse 非有限，scheduler 未步进；多为数据/nan 或 AMP，请重跑预处理或设 train.amp=false。",
                 flush=True,
             )
         print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")

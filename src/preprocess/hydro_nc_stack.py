@@ -64,6 +64,15 @@ def stack_hydro_fields(
 
     field = np.concatenate(chunks, axis=0)
     meta["T"], meta["H"], meta["W"], meta["C"] = field.shape
+    bad = int(np.sum(~np.isfinite(field)))
+    if bad:
+        print(
+            f"警告: 拼接场含 {bad} 个非有限值(nan/inf)，已用 0 替换（常见于 NetCDF 缺测/填充）。",
+            flush=True,
+        )
+        field = np.nan_to_num(field, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+    else:
+        field = field.astype(np.float32)
     return field, meta
 
 
@@ -181,13 +190,25 @@ def split_train_val_test(
 def zscore_fit(
     x_train: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """对 (N,T,H,W,C) 在 N,T,H,W 上求每通道 mean/std。"""
-    # axes 0,1,2,3
-    mean = x_train.mean(axis=(0, 1, 2, 3), keepdims=True)
-    std = x_train.std(axis=(0, 1, 2, 3), keepdims=True)
+    """对 (N,T,H,W,C) 在 N,T,H,W 上求每通道 mean/std（忽略 nan，避免 mean/std 为 nan）。"""
+    x = np.asarray(x_train, dtype=np.float64)
+    if not np.isfinite(x).all():
+        n_bad = int(np.size(x) - np.sum(np.isfinite(x)))
+        print(
+            f"警告: 训练张量仍含 {n_bad} 个非有限值，Z-score 前已清理。",
+            flush=True,
+        )
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+    mean = np.nanmean(x, axis=(0, 1, 2, 3), keepdims=True)
+    std = np.nanstd(x, axis=(0, 1, 2, 3), keepdims=True)
+    mean = np.nan_to_num(mean, nan=0.0)
+    std = np.nan_to_num(std, nan=1.0, posinf=1.0, neginf=1.0)
     std = np.where(std < 1e-6, 1.0, std)
     return mean.astype(np.float32), std.astype(np.float32)
 
 
 def apply_zscore(x: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
-    return ((x - mean) / std).astype(np.float32)
+    out = (x.astype(np.float64) - mean) / std
+    if not np.isfinite(out).all():
+        out = np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+    return out.astype(np.float32)

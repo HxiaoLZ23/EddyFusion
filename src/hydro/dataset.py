@@ -27,6 +27,10 @@ class HydroNpzDataset(Dataset):
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         x = torch.from_numpy(self.x[idx]).float()
         y = torch.from_numpy(self.y[idx]).float()
+        if not torch.isfinite(x).all():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+        if not torch.isfinite(y).all():
+            y = torch.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
         # NHWC -> NCHW for time dimension kept: T H W C -> T C H W
         x = x.permute(0, 3, 1, 2).contiguous()
         y = y.permute(0, 3, 1, 2).contiguous()
