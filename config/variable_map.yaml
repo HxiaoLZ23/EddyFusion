@@ -3,9 +3,10 @@ source_dataset: "海域要素预测"
 source_format: "HYCOM NetCDF"
 
 # 每个内部名对应 NetCDF 中可能的数据变量名（按优先顺序尝试；命题方 SST/SSS/SSU/SSV）
+# 盐度：命题方部分 HYCOM nc 为 short 型变量名 sss（三字母 s），与 ttt 等并存
 channels:
   temp: [SST, sst]
-  sal: [SSS, SSS, sss, sss, ttt]
+  sal: [sss, SSS, SSS, sss, sss, ttt]
   u: [SSU, ssu]
   v: [SSV, ssv]
 
