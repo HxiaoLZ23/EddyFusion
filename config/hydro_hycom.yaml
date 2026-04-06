@@ -69,7 +69,8 @@ train:
   gradient_accumulation_steps: 2
   eval_batch_size: 1
   optimizer: "adamw"
-  lr: 0.0002
+  # 若 train/val 出现 nan，可先降到 1e-4 或设 amp: false，并检查预处理 npz
+  lr: 0.0001
   weight_decay: 0.01
   scheduler: "cosine"
   warmup_epochs: 3

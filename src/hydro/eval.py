@@ -58,7 +58,12 @@ def main() -> None:
     cfg = load_yaml(args.config)
     ckpt = resolve_path(args.ckpt)
     if not ckpt.is_file():
-        raise FileNotFoundError(f"未找到权重: {ckpt}")
+        out = resolve_path(cfg["paths"]["output_dir"])
+        last = out / "last.pt"
+        hint = f"未找到权重: {ckpt}"
+        if last.is_file() and ckpt.name == "best.pt":
+            hint += f"\n若训练曾出现 nan，可能只生成了 last.pt，可改用: --ckpt {last}"
+        raise FileNotFoundError(hint)
 
     device = torch.device(pick_device(cfg["train"].get("device", "cuda")))
     metrics = run_eval(cfg, ckpt, device)

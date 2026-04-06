@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import random
 from pathlib import Path
 
@@ -88,7 +89,12 @@ def validate(model: nn.Module, loader: DataLoader, device: torch.device) -> floa
         y = y.to(device, non_blocking=True)
         pred = model(x)
         scores.append(nrmse_batch(pred, y))
-    return float(np.mean(scores)) if scores else 0.0
+    if not scores:
+        return 0.0
+    arr = np.asarray(scores, dtype=np.float64)
+    if not np.all(np.isfinite(arr)):
+        print("警告: 验证集中存在非有限 NRMSE（常为预测或标签含 nan/inf）", flush=True)
+    return float(np.nanmean(arr))
 
 
 def main() -> None:
@@ -153,6 +159,7 @@ def main() -> None:
     out_dir = resolve_path(paths["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     best_path = out_dir / "best.pt"
+    last_path = out_dir / "last.pt"
     best_metric = float("inf")
 
     for ep in range(1, epochs + 1):
@@ -162,9 +169,29 @@ def main() -> None:
         val_nrmse = validate(model, val_loader, device)
         scheduler.step()
         print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")
-        if val_nrmse < best_metric:
+
+        torch.save(
+            {"model": model.state_dict(), "cfg": cfg, "epoch": ep},
+            last_path,
+        )
+
+        if math.isfinite(val_nrmse) and math.isfinite(tr_loss) and val_nrmse < best_metric:
             best_metric = val_nrmse
             torch.save({"model": model.state_dict(), "cfg": cfg, "epoch": ep}, best_path)
+        elif not math.isfinite(val_nrmse) or not math.isfinite(tr_loss):
+            print(
+                "提示: 当前指标含 nan/inf，不会写入 best.pt；已更新 last.pt。"
+                " 可尝试: 降低 lr、train.amp=false、检查预处理 npz 是否含 nan、"
+                "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True 仅缓解碎片。",
+                flush=True,
+            )
+
+    if not best_path.is_file():
+        print(
+            f"注意: 全程未得到有限验证指标，未生成 {best_path.name}。"
+            f" 仍可用 last.pt 做调试: --ckpt {last_path}",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
