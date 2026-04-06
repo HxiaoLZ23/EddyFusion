@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -54,6 +55,7 @@ def build_from_netcdf(
     data_cfg_path: Path,
     max_daily_files: int | None,
     window_stride: int,
+    proposition_year_split: bool | None = None,
 ) -> None:
     """从服创数据集/海域要素预测 读取多日 .nc，滑窗、划分、Z-score，写入 data/processed/hydro/。"""
     hydro = load_yaml(hydro_cfg_path)
@@ -70,46 +72,118 @@ def build_from_netcdf(
     tin = int(d["input_steps"])
     tout = int(d["output_steps"])
 
-    nc_list = discover_hydro_nc_paths(raw_root, hydro_sub, max_daily_files=max_daily_files)
-    print(f"使用 NetCDF 文件数: {len(nc_list)}（max_daily_files={max_daily_files}）")
-    if max_daily_files is None and len(nc_list) > 500:
-        print(
-            "警告: 未限制日文件数量，数据量可能极大、预处理耗时与内存占用高；"
-            "建议先设 --max-daily-files 或 data.yaml 中 hydro_preprocess.max_daily_files。",
-            file=sys.stderr,
+    ysplit = data_cfg.get("hydro_year_split") or {}
+    use_prop = ysplit.get("enabled", False) if proposition_year_split is None else proposition_year_split
+
+    if use_prop:
+        tr = ysplit.get("train") or {}
+        y_min, y_max = int(tr["min_year"]), int(tr["max_year"])
+        val_years = set(int(x) for x in ysplit.get("val_years", [2015]))
+        test_years = set(int(x) for x in ysplit.get("test_years", [2014]))
+
+        train_files = discover_hydro_nc_paths(
+            raw_root,
+            hydro_sub,
+            max_daily_files=max_daily_files,
+            year_min=y_min,
+            year_max=y_max,
         )
+        val_files = discover_hydro_nc_paths(raw_root, hydro_sub, years=val_years)
+        test_files = discover_hydro_nc_paths(raw_root, hydro_sub, years=test_years)
 
-    field, meta = stack_hydro_fields(nc_list, feats)
-    print(f"拼接后场 shape (T,H,W,C)={field.shape}, meta={meta}")
+        print(
+            f"命题方年份划分: train {y_min}-{y_max} 文件数={len(train_files)}, "
+            f"val {sorted(val_years)}={len(val_files)}, test {sorted(test_years)}={len(test_files)}",
+            flush=True,
+        )
+        if not train_files:
+            raise FileNotFoundError("训练年文件列表为空，请检查海域要素预测目录与 hydro_year_split")
 
-    x, y = build_windows(field, tin, tout, stride=window_stride)
-    print(f"滑窗样本数 N={x.shape[0]}, stride={window_stride}")
+        meta: dict[str, Any] = {"split_mode": "proposition_years", "hydro_year_split": ysplit}
+        splits_data: dict[str, tuple[np.ndarray, np.ndarray, dict[str, Any]]] = {}
+        for split_name, flist in (
+            ("train", train_files),
+            ("val", val_files),
+            ("test", test_files),
+        ):
+            if not flist:
+                print(f"警告: 划分 {split_name} 无 NetCDF 文件，跳过写出", file=sys.stderr)
+                continue
+            field, mpart = stack_hydro_fields(flist, feats)
+            print(f"[{split_name}] 拼接场 (T,H,W,C)={field.shape}")
+            x_sp, y_sp = build_windows(field, tin, tout, stride=window_stride)
+            print(f"[{split_name}] 滑窗 N={x_sp.shape[0]}, stride={window_stride}")
+            splits_data[split_name] = (x_sp, y_sp, mpart)
 
-    sp = data_cfg.get("split", {})
-    tr, va, te = float(sp.get("train_ratio", 0.8)), float(sp.get("val_ratio", 0.1)), float(sp.get("test_ratio", 0.1))
-    (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = split_train_val_test(x, y, tr, va, te)
+        if "train" not in splits_data:
+            raise RuntimeError("训练集为空，无法估计标准化参数")
 
-    mean, std = zscore_fit(x_tr)
-    x_tr = apply_zscore(x_tr, mean, std)
-    x_va = apply_zscore(x_va, mean, std)
-    x_te = apply_zscore(x_te, mean, std)
-    y_tr = apply_zscore(y_tr, mean, std)
-    y_va = apply_zscore(y_va, mean, std)
-    y_te = apply_zscore(y_te, mean, std)
+        x_tr, y_tr, _ = splits_data["train"]
+        mean, std = zscore_fit(x_tr)
+        x_tr = apply_zscore(x_tr, mean, std)
+        y_tr = apply_zscore(y_tr, mean, std)
+
+        z_splits: dict[str, tuple[np.ndarray, np.ndarray]] = {"train": (x_tr, y_tr)}
+        for name in ("val", "test"):
+            if name not in splits_data:
+                continue
+            x_raw, y_raw, _ = splits_data[name]
+            z_splits[name] = (apply_zscore(x_raw, mean, std), apply_zscore(y_raw, mean, std))
+
+        meta.update(splits_data["train"][2])
+        meta["files_used_train"] = meta.get("files_used", 0)
+
+    else:
+        nc_list = discover_hydro_nc_paths(raw_root, hydro_sub, max_daily_files=max_daily_files)
+        print(f"使用 NetCDF 文件数: {len(nc_list)}（max_daily_files={max_daily_files}）")
+        if max_daily_files is None and len(nc_list) > 500:
+            print(
+                "警告: 未限制日文件数量，数据量可能极大、预处理耗时与内存占用高；"
+                "建议先设 --max-daily-files 或 data.yaml 中 hydro_preprocess.max_daily_files。",
+                file=sys.stderr,
+            )
+
+        field, meta = stack_hydro_fields(nc_list, feats)
+        print(f"拼接后场 shape (T,H,W,C)={field.shape}, meta={meta}")
+        meta["split_mode"] = "ratio"
+
+        x, y = build_windows(field, tin, tout, stride=window_stride)
+        print(f"滑窗样本数 N={x.shape[0]}, stride={window_stride}")
+
+        sp = data_cfg.get("split", {})
+        tr = float(sp.get("train_ratio", 0.8))
+        va = float(sp.get("val_ratio", 0.1))
+        te = float(sp.get("test_ratio", 0.1))
+        (x_tr, y_tr), (x_va, y_va), (x_te, y_te) = split_train_val_test(x, y, tr, va, te)
+
+        mean, std = zscore_fit(x_tr)
+        x_tr = apply_zscore(x_tr, mean, std)
+        x_va = apply_zscore(x_va, mean, std)
+        x_te = apply_zscore(x_te, mean, std)
+        y_tr = apply_zscore(y_tr, mean, std)
+        y_va = apply_zscore(y_va, mean, std)
+        y_te = apply_zscore(y_te, mean, std)
+        z_splits = {
+            "train": (x_tr, y_tr),
+            "val": (x_va, y_va),
+            "test": (x_te, y_te),
+        }
 
     paths = hydro["paths"]
     stats_dir = resolve_path(data_cfg.get("normalization", {}).get("stats_dir", "data/processed/stats"))
     ensure_dir(stats_dir)
     stats_npz = stats_dir / "hydro_zscore.npz"
     np.savez_compressed(stats_npz, mean=mean, std=std, features=feats)
+    meta_out = dict(meta) if use_prop else meta
+    meta_out["hydro_config"] = str(hydro_cfg_path)
+    meta_out["window_stride"] = window_stride
     with (stats_dir / "hydro_preprocess_meta.json").open("w", encoding="utf-8") as f:
-        json.dump({**meta, "hydro_config": str(hydro_cfg_path), "window_stride": window_stride}, f, ensure_ascii=False, indent=2)
+        json.dump(meta_out, f, ensure_ascii=False, indent=2, default=str)
 
-    for split_name, x_arr, y_arr in (
-        ("train", x_tr, y_tr),
-        ("val", x_va, y_va),
-        ("test", x_te, y_te),
-    ):
+    for split_name in ("train", "val", "test"):
+        if split_name not in z_splits:
+            continue
+        x_arr, y_arr = z_splits[split_name]
         xp = resolve_path(paths[f"{split_name}_data"])
         yp = resolve_path(paths[f"{split_name}_label"])
         ensure_dir(xp.parent)
@@ -146,6 +220,17 @@ def main() -> None:
         default=None,
         help="滑窗步长（默认读 data.yaml 的 hydro_preprocess.window_stride）",
     )
+    split_group = parser.add_mutually_exclusive_group()
+    split_group.add_argument(
+        "--year-split",
+        action="store_true",
+        help="强制按 data.yaml 的 hydro_year_split 做命题方年份划分（忽略 enabled 开关）",
+    )
+    split_group.add_argument(
+        "--ratio-split",
+        action="store_true",
+        help="强制按 train/val/test 比例划分（忽略 hydro_year_split）",
+    )
     args = parser.parse_args()
     root = project_root()
 
@@ -164,11 +249,18 @@ def main() -> None:
         if stride is None:
             stride = int(hp.get("window_stride", 1))
 
+        prop_mode: bool | None = None
+        if args.year_split:
+            prop_mode = True
+        elif args.ratio_split:
+            prop_mode = False
+
         build_from_netcdf(
             root / args.config,
             root / args.data_config,
             max_daily_files=max_f,
             window_stride=stride,
+            proposition_year_split=prop_mode,
         )
         return
 

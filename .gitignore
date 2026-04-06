@@ -46,6 +46,12 @@ outputs/anomaly/*
 *.nc
 *.zarr
 
+# 工具缓存
+.accelerate/
+
+# 本地打包的大数据集（勿提交）
+*.7z
+
 # IDE
 .idea/
 .vscode/

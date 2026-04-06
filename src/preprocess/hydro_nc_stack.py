@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import xarray as xr
 
 from src.preprocess.netcdf_io import open_netcdf_dataset
 from src.utils.config import load_yaml, project_root, resolve_path
@@ -67,20 +66,42 @@ def stack_hydro_fields(
     return field, meta
 
 
+def _calendar_year_from_path(p: Path) -> int | None:
+    """从路径中解析年份目录名（如 .../1994/19940101.nc → 1994）。"""
+    for part in p.parts:
+        if part.isdigit() and len(part) == 4:
+            y = int(part)
+            if 1900 <= y <= 2100:
+                return y
+    return None
+
+
 def discover_hydro_nc_paths(
     raw_root: Path,
     hydro_subdir: str,
     max_daily_files: int | None = None,
+    *,
+    years: set[int] | None = None,
+    year_min: int | None = None,
+    year_max: int | None = None,
 ) -> list[Path]:
-    """按文件名 YYYYMMDD.nc 排序。"""
+    """按文件名 YYYYMMDD.nc 排序；可选按父目录年份过滤（命题方 train/val/test 年）。"""
     sub = raw_root / hydro_subdir
     if not sub.is_dir():
         raise FileNotFoundError(f"水文数据目录不存在: {sub}")
     files = sorted(sub.rglob("*.nc"))
-    # 排除 macOS 元数据目录
     files = [f for f in files if "__MACOSX" not in f.parts]
     if not files:
         raise FileNotFoundError(f"未在 {sub} 下发现 .nc 文件")
+
+    if years is not None:
+        files = [f for f in files if _calendar_year_from_path(f) in years]
+    elif year_min is not None and year_max is not None:
+        files = [
+            f
+            for f in files
+            if (y := _calendar_year_from_path(f)) is not None and year_min <= y <= year_max
+        ]
 
     def sort_key(p: Path) -> tuple:
         stem = p.stem

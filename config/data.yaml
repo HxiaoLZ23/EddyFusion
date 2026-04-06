@@ -18,14 +18,24 @@ spatial:
   lat_max: 41.0
 
 temporal:
-  time_step_hours: 6   # 与预处理一致
+  # 海域要素预测命题方时间为 hourly；风-浪为 3-hourly 等见 docs/命题方数据集说明.md
+  time_step_hours: 1
 
 split:
-  # 若命题方提供固定划分，改为 list 路径或名称映射
-  strategy: "time_outer"   # time_outer | fixed_files
+  # 比例划分仅作开发烟测；正式与命题方一致时请使用 hydro_year_split
+  strategy: "time_outer"
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
+
+# 海域要素预测：参赛方划分（见 服创数据集/数据集说明.md 第二节）
+hydro_year_split:
+  enabled: false
+  train:
+    min_year: 1994
+    max_year: 2013
+  val_years: [2015]
+  test_years: [2014]
 
 normalization:
   stats_dir: "data/processed/stats"   # 全局均值方差等

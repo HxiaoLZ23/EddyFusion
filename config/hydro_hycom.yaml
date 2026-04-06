@@ -20,10 +20,11 @@ paths:
 data:
   input_features: ["temp", "sal", "u", "v"]
   target_features: ["temp", "sal", "u", "v"]
-  input_days: 30
-  input_steps: 120
-  output_hours: [72, 96, 120]
-  output_steps: 20
+  # 命题方：输入 [t−n,…,t]、输出未来 72 小时；hourly 时 output_steps=72（见 docs/命题方数据集说明.md）
+  input_days: 7
+  input_steps: 168
+  output_hours: [72]
+  output_steps: 72
   grid_shape: [138, 125]
   normalize:
     temp: "zscore"
@@ -76,7 +77,7 @@ train:
 
 eval:
   metrics: ["rmse", "nrmse", "mae"]
-  report_horizons_hours: [72, 96, 120]
+  report_horizons_hours: [72]
   save_preds: true
   save_metrics_json: true
   metrics_file: "outputs/hydro/metrics_summary.json"

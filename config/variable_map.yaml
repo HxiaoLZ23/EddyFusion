@@ -2,12 +2,12 @@
 source_dataset: "海域要素预测"
 source_format: "HYCOM NetCDF"
 
-# 每个内部名对应 NetCDF 中可能的数据变量名（按优先顺序尝试）
+# 每个内部名对应 NetCDF 中可能的数据变量名（按优先顺序尝试；命题方 SST/SSS/SSU/SSV）
 channels:
-  temp: [sst]
-  sal: [sss, sss]
-  u: [ssu]
-  v: [ssv]
+  temp: [SST, sst]
+  sal: [SSS, SSS, sss, sss, ttt]
+  u: [SSU, ssu]
+  v: [SSV, ssv]
 
 dimensions_example:
   time: 12
