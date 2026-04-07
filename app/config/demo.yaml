@@ -1,0 +1,10 @@
+app:
+  title: "EddyFusion 演示系统"
+  mode: "mock"
+  max_upload_mb: 500
+  allowed_ext: [".mp4", ".mov", ".avi", ".mkv", ".webm"]
+
+mock:
+  anomaly_threshold: 0.5
+  summary_template: "检测到中后段异常增强趋势，建议人工复核关键时段。"
+

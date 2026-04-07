@@ -1,0 +1,27 @@
+# 系统运行效果指标表
+
+| 模块 | split | level | 指标 | 数值 | 是否达标 | 来源文件 |
+|------|-------|-------|------|------|----------|----------|
+| hydro | - | 2 | rmse_per_feature.temp | 0.19916462898254395 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.sal | 0.10846047103404999 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.u | 1.145885705947876 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.v | 0.9804041385650635 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.temp | 0.199318066239357 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.sal | 0.108850859105587 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.u | 1.7572813034057617 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.v | 1.5551784038543701 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | val_nrmse_avg | 0.9051571488380432 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
+| anomaly | - | 2 | mae_wind | 4.263944625854492 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| anomaly | - | 2 | mae_wave | 3.2682652473449707 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| anomaly | - | 2 | rmse_wind | 5.956886291503906 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| anomaly | - | 2 | rmse_wave | 4.556940078735352 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| anomaly | - | 2 | mae_avg | 3.7661049365997314 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.temp | 0.9986834526062012 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.sal | 1.0038305521011353 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.u | 0.996957004070282 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | rmse_per_feature.v | 0.9965999722480774 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.temp | 1.251802682876587 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.sal | 1.255890965461731 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.u | 1.2507541179656982 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | nrmse_per_feature.v | 1.2539020776748657 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
+| hydro | - | 2 | val_nrmse_avg | 1.2530875205993652 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |

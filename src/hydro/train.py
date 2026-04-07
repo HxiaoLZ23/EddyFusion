@@ -12,6 +12,7 @@ from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from src.hydro.dataset import HydroNpzDataset
 from src.hydro.model import build_model
+from src.hydro.visualize import save_hydro_example_plots
 from src.utils.config import load_yaml, pick_device, project_root, resolve_path
 
 
@@ -41,6 +42,7 @@ def train_epoch(
     scaler: GradScaler | None,
     grad_clip: float,
     grad_accum_steps: int = 1,
+    max_batches: int | None = None,
 ) -> tuple[float, bool]:
     """返回 (平均 train MSE, 本 epoch 是否至少执行过一次 optimizer.step)。"""
     model.train()
@@ -50,7 +52,9 @@ def train_epoch(
     optimizer.zero_grad(set_to_none=True)
     micro = 0
     stepped = False
-    for x, y in loader:
+    for bi, (x, y) in enumerate(loader, start=1):
+        if max_batches is not None and bi > max_batches:
+            break
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
         if scaler:
@@ -67,7 +71,7 @@ def train_epoch(
         total += float(loss_full.item()) * bs
         n += bs
         micro += 1
-        if micro % accum == 0 or micro == len(loader):
+        if micro % accum == 0:
             if scaler:
                 if grad_clip > 0:
                     scaler.unscale_(optimizer)
@@ -80,14 +84,29 @@ def train_epoch(
                 optimizer.step()
             stepped = True
             optimizer.zero_grad(set_to_none=True)
+    if micro % accum != 0 and micro > 0:
+        if scaler:
+            if grad_clip > 0:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            optimizer.step()
+        stepped = True
+        optimizer.zero_grad(set_to_none=True)
     return total / max(n, 1), stepped
 
 
 @torch.no_grad()
-def validate(model: nn.Module, loader: DataLoader, device: torch.device) -> float:
+def validate(model: nn.Module, loader: DataLoader, device: torch.device, max_batches: int | None = None) -> float:
     model.eval()
     scores: list[float] = []
-    for x, y in loader:
+    for bi, (x, y) in enumerate(loader, start=1):
+        if max_batches is not None and bi > max_batches:
+            break
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
         pred = model(x)
@@ -170,6 +189,14 @@ def main() -> None:
     scaler = GradScaler("cuda") if use_amp else None
     grad_clip = float(tc.get("grad_clip_norm", 0))
     grad_accum = int(tc.get("gradient_accumulation_steps", 1))
+    val_every_epochs = max(1, int(tc.get("val_every_epochs", 1)))
+    max_train_batches = tc.get("max_train_batches_per_epoch")
+    max_train_batches = int(max_train_batches) if max_train_batches is not None else None
+    max_val_batches = tc.get("max_val_batches")
+    max_val_batches = int(max_val_batches) if max_val_batches is not None else None
+    early_stop_patience = int(tc.get("early_stop_patience", 0))
+    no_improve_epochs = 0
+    plot_every_epochs = int(tc.get("plot_every_epochs", 5))
 
     out_dir = resolve_path(paths["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -186,9 +213,17 @@ def main() -> None:
 
     for ep in range(1, epochs + 1):
         tr_loss, stepped = train_epoch(
-            model, train_loader, device, optimizer, scaler, grad_clip, grad_accum
+            model,
+            train_loader,
+            device,
+            optimizer,
+            scaler,
+            grad_clip,
+            grad_accum,
+            max_batches=max_train_batches,
         )
-        val_nrmse = validate(model, val_loader, device)
+        run_val = (ep % val_every_epochs == 0)
+        val_nrmse = validate(model, val_loader, device, max_batches=max_val_batches) if run_val else float("nan")
         # GradScaler 在梯度为 inf/nan 时会跳过 optimizer.step()，但仍可能 stepped=True；
         # 仅当训练损失有限时才推进 scheduler，避免「scheduler 先于 optimizer」类告警。
         if stepped and math.isfinite(tr_loss):
@@ -204,23 +239,53 @@ def main() -> None:
                 "提示: train_mse 非有限，scheduler 未步进；多为数据/nan 或 AMP，请重跑预处理或设 train.amp=false。",
                 flush=True,
             )
-        print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")
+        if run_val:
+            print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")
+        else:
+            print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse=SKIP(every {val_every_epochs} epochs)")
 
         torch.save(
             {"model": model.state_dict(), "cfg": cfg, "epoch": ep},
             last_path,
         )
 
-        if math.isfinite(val_nrmse) and math.isfinite(tr_loss) and val_nrmse < best_metric:
+        if run_val and math.isfinite(val_nrmse) and math.isfinite(tr_loss) and val_nrmse < best_metric:
             best_metric = val_nrmse
+            no_improve_epochs = 0
             torch.save({"model": model.state_dict(), "cfg": cfg, "epoch": ep}, best_path)
-        elif not math.isfinite(val_nrmse) or not math.isfinite(tr_loss):
+        elif run_val and math.isfinite(val_nrmse) and math.isfinite(tr_loss):
+            no_improve_epochs += 1
+        elif run_val and (not math.isfinite(val_nrmse) or not math.isfinite(tr_loss)):
             print(
                 "提示: 当前指标含 nan/inf，不会写入 best.pt；已更新 last.pt。"
                 " 可尝试: 降低 lr、train.amp=false、检查预处理 npz 是否含 nan、"
                 "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True 仅缓解碎片。",
                 flush=True,
             )
+            no_improve_epochs += 1
+
+        if run_val and early_stop_patience > 0 and no_improve_epochs >= early_stop_patience:
+            print(
+                f"早停: 连续 {no_improve_epochs} 次验证未提升（patience={early_stop_patience}），停止训练。",
+                flush=True,
+            )
+            break
+
+        if plot_every_epochs > 0 and ep % plot_every_epochs == 0:
+            try:
+                files = save_hydro_example_plots(
+                    model=model,
+                    cfg=cfg,
+                    device=device,
+                    split="val",
+                    sample_index=0,
+                    out_dir=resolve_path(paths["output_dir"]) / "figures",
+                    tag=f"train_ep{ep}",
+                )
+                if files:
+                    print(f"[plot] epoch {ep} saved {len(files)} files, e.g. {files[0]}", flush=True)
+            except Exception as e:
+                print(f"[plot] epoch {ep} failed: {e}", flush=True)
 
     if not best_path.is_file():
         print(

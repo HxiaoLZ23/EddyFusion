@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 
 from src.hydro.dataset import HydroNpzDataset
 from src.hydro.model import build_model
+from src.hydro.visualize import save_hydro_example_plots
 from src.utils.config import load_yaml, pick_device, resolve_path
 from src.utils.metrics import write_metrics_json
 
@@ -109,6 +110,32 @@ def main() -> None:
     )
     print(f"wrote {out_json}")
     print("metrics:", metrics)
+
+    ev = cfg.get("eval", {})
+    if bool(ev.get("save_plots", True)):
+        plots_dir = ev.get("plots_dir", "outputs/hydro/figures")
+        sample_idx = int(ev.get("plot_sample_index", 0))
+        tag = f"eval_{args.split}"
+        # 加载权重后出图，便于材料直接引用
+        plot_model = build_model(cfg).to(device)
+        try:
+            pstate = torch.load(ckpt, map_location=device, weights_only=False)
+        except TypeError:
+            pstate = torch.load(ckpt, map_location=device)
+        plot_model.load_state_dict(pstate["model"])
+        files = save_hydro_example_plots(
+            model=plot_model,
+            cfg=cfg,
+            device=device,
+            split=args.split,
+            sample_index=sample_idx,
+            out_dir=plots_dir,
+            tag=tag,
+        )
+        if files:
+            print("saved plots:")
+            for fp in files:
+                print(f"  - {fp}")
 
 
 if __name__ == "__main__":

@@ -55,3 +55,25 @@ hydro_preprocess:
   window_stride: 24
   # 估算拼接场时间维时用（每文件平均 time 步数，无法预知时可保持 24）
   avg_time_steps_per_file: 24
+
+# 风浪异常识别（命题方）目录与年份划分
+anomaly_year_split:
+  enabled: true
+  train:
+    min_year: 2014
+    max_year: 2023
+  val_years: [2025]
+  test_years: [2024]
+
+anomaly_preprocess:
+  # 命题方风浪数据子目录（按本机实际目录名调整）
+  subdir: "风-浪异常识别"
+  # 风浪数据时间步长（小时）
+  time_step_hours: 3
+  # 全量上限（null 不限制）；可配合 split 专用上限
+  max_daily_files: null
+  max_train_daily_files: null
+  max_val_daily_files: null
+  max_test_daily_files: null
+  # 风浪窗口步长（越大样本越少，预处理更快）
+  window_stride: 1

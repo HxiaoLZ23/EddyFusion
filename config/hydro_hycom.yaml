@@ -78,15 +78,26 @@ train:
   grad_clip_norm: 1.0
   amp: true
   early_stop_patience: 10
+  # 提速开关（默认全量）：每轮最多训练/验证多少个 batch；null 表示不限制
+  max_train_batches_per_epoch: null
+  max_val_batches: null
+  # 验证频率；>1 可显著缩短每轮耗时（尤其验证集较大时）
+  val_every_epochs: 1
   log_interval: 50
   save_best_by: "val_nrmse_avg"
   checkpoint_every_epoch: 1
+  # 训练阶段自动出图周期（0=关闭）。建议 5~10，避免每轮出图拖慢训练。
+  plot_every_epochs: 5
 
 eval:
   metrics: ["rmse", "nrmse", "mae"]
   report_horizons_hours: [72]
   save_preds: true
   save_metrics_json: true
+  # 推理/评估阶段出图：真实场、预测场、误差图 + 区域均值曲线
+  save_plots: true
+  plots_dir: "outputs/hydro/figures"
+  plot_sample_index: 0
   # eval 写入 metrics_summary_val.json / metrics_summary_test.json（由 --split 决定）
   metrics_file: "outputs/hydro/metrics_summary.json"
   tag_fields: ["level", "mot.enabled", "attn_res.enabled"]

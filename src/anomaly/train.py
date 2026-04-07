@@ -6,7 +6,7 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from src.anomaly.dataset import AnomalyNpzDataset
 from src.anomaly.model import build_model
@@ -50,7 +50,7 @@ def main() -> None:
     optimizer = torch.optim.Adam(model.parameters(), lr=float(tc["lr"]))
     epochs = int(tc["epochs"])
     use_amp = bool(tc.get("amp", True)) and device_str == "cuda"
-    scaler = GradScaler() if use_amp else None
+    scaler = GradScaler("cuda") if use_amp else None
 
     out_dir = resolve_path(paths["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +66,7 @@ def main() -> None:
             y = y.to(device)
             optimizer.zero_grad(set_to_none=True)
             if scaler:
-                with autocast():
+                with autocast("cuda", enabled=device.type == "cuda"):
                     pred = model(x)
                     loss = nn.functional.mse_loss(pred, y)
                 scaler.scale(loss).backward()
