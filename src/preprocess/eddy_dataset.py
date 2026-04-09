@@ -46,7 +46,7 @@ def inspect_eddy_netcdf(nc_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="涡旋数据：YOLO 模板 / NetCDF 结构探查")
+    parser = argparse.ArgumentParser(description="涡旋数据：YOLO 模板 / NetCDF 结构探查 / OW 伪标签导出")
     parser.add_argument("--config", type=str, default="config/data.yaml")
     parser.add_argument(
         "--write-template",
@@ -64,8 +64,19 @@ def main() -> None:
         default="",
         help="指定单个 NetCDF 路径（可选；默认取涡旋子目录下字典序第一个 .nc）",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--export-yolo",
+        action="store_true",
+        help="从 adt/ugos/vgos 计算 OW（多分位投票）并导出 YOLO-seg 用 PNG+txt；其余参数见 eddy_yolo_export",
+    )
+    args, rest = parser.parse_known_args()
     root = project_root()
+    if args.export_yolo:
+        from src.preprocess.eddy_yolo_export import main_argv
+
+        raise SystemExit(main_argv(rest))
+    if rest:
+        parser.error(f"未识别的参数（若导出伪标签请加 --export-yolo）: {rest}")
     if args.write_template:
         write_template_dataset_yaml(root / "config" / "eddy_dataset_template.yaml", root)
         return
@@ -84,8 +95,7 @@ def main() -> None:
         inspect_eddy_netcdf(p)
         return
     raise SystemExit(
-        "请使用: --write-template 生成 YOLO 模板，或 --inspect 查看命题方 NetCDF 结构；"
-        "从场数据导出图像+分割标注的实现待根据 --inspect 输出补充。"
+        "请使用: --write-template | --inspect | --export-yolo（OW 伪标签 → YOLO-seg，详见 docs/涡旋_OW至YOLO伪标签开发参考.md）"
     )
 
 

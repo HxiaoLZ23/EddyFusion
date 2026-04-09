@@ -157,9 +157,24 @@ git push -u origin main
 
 | 文档 | 内容 |
 |------|------|
+| `docs/README.md` | **`docs/` 目录总索引**（本表的超集与跳转） |
 | `docs/命题方数据集说明.md` | 命题方海区、变量、划分、指标摘要 |
+| `docs/涡旋_OW至YOLO伪标签开发参考.md` | **涡旋伪标签**：OW 多阈值投票、YOLO-seg 导出与文献路线（配合 `eddy_dataset --export-yolo`） |
 | `docs/实施过程与局限性.md` | 各模块 Level、水文局限（缺测/内存/显存/划分） |
 | `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
 | `docs/系统架构说明.md` | 数据流与目录职责 |
 | `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
 | `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
+
+### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）
+
+依赖 `服创数据集` 下涡旋 `.nc`（`adt`/`ugos`/`vgos`）。详见 **`docs/涡旋_OW至YOLO伪标签开发参考.md`**。
+
+```bash
+# 烟测：每个 nc 最多 3 帧、时间步长 60
+python -m src.preprocess.eddy_dataset --export-yolo --data-config config/data.yaml \
+  --max-frames-per-file 3 --time-stride 60
+
+# 再训练（需已安装 ultralytics，且 dataset.yaml 已生成在 data/processed/eddy/）
+python -m src.eddy.train --config config/eddy.yaml
+```
