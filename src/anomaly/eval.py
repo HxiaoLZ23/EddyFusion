@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,18 +14,14 @@ from src.utils.metrics import write_metrics_json
 
 
 @torch.no_grad()
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/anomaly.yaml")
-    parser.add_argument("--ckpt", type=str, default="outputs/anomaly/best.pt")
-    args = parser.parse_args()
+def run_eval(cfg: dict, ckpt: Path, device: torch.device, split: str) -> dict:
+    paths = cfg["paths"]
+    key = f"{split}_sequences"
+    if key not in paths:
+        raise KeyError(f"配置 paths 中缺少 {key}，无法评估 split={split}")
+    ds = AnomalyNpzDataset(paths[key])
+    loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=0)
 
-    cfg = load_yaml(args.config)
-    ckpt = resolve_path(args.ckpt)
-    if not ckpt.is_file():
-        raise FileNotFoundError(ckpt)
-
-    device = torch.device(pick_device(cfg["train"].get("device", "cuda")))
     model = build_model(cfg).to(device)
     try:
         state = torch.load(ckpt, map_location=device, weights_only=False)
@@ -32,10 +29,6 @@ def main() -> None:
         state = torch.load(ckpt, map_location=device)
     model.load_state_dict(state["model"])
     model.eval()
-
-    paths = cfg["paths"]
-    ds = AnomalyNpzDataset(paths["test_sequences"])
-    loader = DataLoader(ds, batch_size=64, shuffle=False)
 
     maes = []
     rmses = []
@@ -55,20 +48,58 @@ def main() -> None:
         "rmse_wind": float(rmse[0]),
         "rmse_wave": float(rmse[1]),
         "mae_avg": float(mae.mean()),
+        "rmse_avg": float(rmse.mean()),
+        "split": split,
     }
-    # 赛题「准确率≥80%」需命题方口径；此处用回归误差作占位，passed 仅作演示
-    passed = metrics["mae_avg"] < 0.5
+    if split == "val":
+        metrics["val_mae_avg"] = metrics["mae_avg"]
+    else:
+        metrics["test_mae_avg"] = metrics["mae_avg"]
+    return metrics
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="config/anomaly.yaml")
+    parser.add_argument("--ckpt", type=str, default="outputs/anomaly/best.pt")
+    parser.add_argument(
+        "--split",
+        type=str,
+        choices=("val", "test"),
+        default="val",
+        help="使用 paths 中 val_sequences 或 test_sequences",
+    )
+    args = parser.parse_args()
+
+    cfg = load_yaml(args.config)
+    ckpt = resolve_path(args.ckpt)
+    if not ckpt.is_file():
+        out = resolve_path(cfg["paths"]["output_dir"])
+        last = out / "last.pt"
+        hint = f"未找到权重: {ckpt}"
+        if last.is_file() and ckpt.name == "best.pt":
+            hint += f"\n可改用: --ckpt {last}"
+        raise FileNotFoundError(hint)
+
+    device = torch.device(pick_device(cfg["train"].get("device", "cuda")))
+    metrics = run_eval(cfg, ckpt, device, split=args.split)
 
     level = int(cfg["meta"]["level"])
-    out = cfg.get("eval", {}).get("metrics_file", "outputs/anomaly/metrics_summary.json")
+    # 赛题「准确率≥80%」需命题方口径；回归 MAE 作过程指标，阈值占位
+    passed = metrics["mae_avg"] < 0.5
+
+    mf = cfg.get("eval", {}).get("metrics_file", "outputs/anomaly/metrics_summary.json")
+    mp = resolve_path(mf)
+    out_json = mp.parent / f"{mp.stem}_{args.split}{mp.suffix}"
     write_metrics_json(
-        out,
+        out_json,
         module="anomaly",
         level=level,
         metrics=metrics,
         passed=passed,
-        tags={"level": level},
+        tags={"level": level, "eval_split": args.split},
     )
+    print(f"wrote {out_json}")
     print("metrics:", metrics)
 
 

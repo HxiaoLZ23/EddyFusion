@@ -54,7 +54,11 @@ def _collect_metric_files(root: Path) -> list[Path]:
         root / "hydro" / "metrics_summary_val.json",
         root / "hydro" / "metrics_summary_test.json",
         root / "hydro" / "metrics_summary.json",
+        root / "anomaly" / "metrics_summary_val.json",
+        root / "anomaly" / "metrics_summary_test.json",
         root / "anomaly" / "metrics_summary.json",
+        root / "eddy" / "metrics_summary_val.json",
+        root / "eddy" / "metrics_summary_test.json",
         root / "eddy" / "metrics_summary.json",
     ]
     return [p for p in cands if p.is_file()]

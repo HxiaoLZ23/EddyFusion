@@ -55,6 +55,7 @@ def main() -> None:
     out_dir = resolve_path(paths["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     best_path = out_dir / "best.pt"
+    last_path = out_dir / "last.pt"
     best = float("inf")
 
     for ep in range(1, epochs + 1):
@@ -95,6 +96,7 @@ def main() -> None:
                 vn += x.size(0)
         val_loss = vloss / max(vn, 1)
         print(f"epoch {ep}/{epochs} train_mse={train_loss:.6f} val_mse={val_loss:.6f}")
+        torch.save({"model": model.state_dict(), "cfg": cfg, "epoch": ep}, last_path)
         if val_loss < best:
             best = val_loss
             torch.save({"model": model.state_dict(), "cfg": cfg, "epoch": ep}, best_path)

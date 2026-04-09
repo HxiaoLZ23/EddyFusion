@@ -8,6 +8,8 @@ paths:
   raw_root: "服创数据集"
   # 水文/海域 NetCDF 子目录名以本机为准（常见「海域要素预测」或「水文要素预测」）
   hydro_subdir: "海域要素预测"
+  # 中尺度涡识别（命题方）：ADT/UGOS/VGOS 等，见 `服创数据集/数据集说明.md`
+  eddy_subdir: "中尺度涡识别"
   processed_root: "data/processed"
 
 spatial:
