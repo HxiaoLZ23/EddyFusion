@@ -8,11 +8,11 @@ from src.utils.config import load_yaml, project_root, resolve_path
 
 def write_template_dataset_yaml(out_path: Path, root: Path) -> None:
     """生成 ultralytics 用 dataset 模板；图像与标注需人工放入对应目录。"""
-    rel = Path("data/processed/eddy/images")
-    txt = f"""# 将训练/验证图像与标注按 YOLO-seg 格式放入 {rel}/train 与 {rel}/val
+    rel = Path("data/processed/eddy")
+    txt = f"""# 将训练/验证图像与标注按 YOLO-seg 格式放入 {rel}/images/{'{train,val}'}
 path: {rel.as_posix()}
-train: train/images
-val: val/images
+train: images/train
+val: images/val
 names:
   0: eddy_cyclonic
   1: eddy_anticyclonic

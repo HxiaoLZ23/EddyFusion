@@ -64,6 +64,7 @@ def _rgb_from_fields(
     out = np.zeros((adt.shape[0], adt.shape[1], 3), dtype=np.uint8)
 
     def norm1(x: np.ndarray) -> np.ndarray:
+        x = np.asarray(x, dtype=np.float64)
         xf = x[np.isfinite(x)]
         if xf.size == 0:
             return np.zeros_like(x, dtype=np.uint8)
@@ -71,6 +72,8 @@ def _rgb_from_fields(
         if hi <= lo:
             hi = lo + 1e-9
         y = np.clip((x - lo) / (hi - lo), 0, 1)
+        # NetCDF 中常见局部 NaN/Inf；统一压到 0，避免 cast 警告与脏像素传播。
+        y = np.nan_to_num(y, nan=0.0, posinf=1.0, neginf=0.0)
         return (y * 255).astype(np.uint8)
 
     out[:, :, 0] = norm1(adt)
@@ -138,7 +141,7 @@ def _contours_to_yolo_lines(
 
 def _write_dataset_yaml(eddy_root: Path) -> None:
     txt = """# 由 eddy_dataset --export-yolo 生成；path 相对于本文件所在目录
-path: .
+path: data/processed/eddy
 train: images/train
 val: images/val
 names:
