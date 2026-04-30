@@ -69,7 +69,7 @@ anomaly_year_split:
 
 anomaly_preprocess:
   # 命题方风浪数据子目录（按本机实际目录名调整）
-  subdir: "风-浪异常识别"
+  subdir: "风浪异常识别"
   # 风浪数据时间步长（小时）
   time_step_hours: 3
   # 全量上限（null 不限制）；可配合 split 专用上限
