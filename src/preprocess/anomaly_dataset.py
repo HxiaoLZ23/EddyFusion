@@ -104,34 +104,51 @@ def _to_time_series_1d(arr: np.ndarray) -> np.ndarray:
 def _extract_wind_wave_series(nc_path: Path) -> tuple[np.ndarray, dict[str, int]]:
     ds, tmp_copy = open_netcdf_dataset(nc_path)
     try:
-        u_da = _pick_dataarray(ds, ["u10", "U10", "10u", "uwnd", "u_wind"])
-        v_da = _pick_dataarray(ds, ["v10", "V10", "10v", "vwnd", "v_wind"])
+        u_da = _pick_dataarray(ds, ["u10", "U10", "10u", "uwnd", "u_wind"], required=False)
+        v_da = _pick_dataarray(ds, ["v10", "V10", "10v", "vwnd", "v_wind"], required=False)
         swh_da = _pick_dataarray(
             ds, ["swh", "SWH", "hs", "wave_height", "significant_wave_height"], required=False
         )
-        u = _to_time_series_1d(u_da.values)
-        v = _to_time_series_1d(v_da.values)
-        # 某些命题方风场文件仅含 u10/v10；缺 SWH 时用风速模作近似占位并记录降级。
-        if swh_da is None:
-            t = min(len(u), len(v))
-            u, v = u[:t], v[:t]
-            swh = np.sqrt(u.astype(np.float32) ** 2 + v.astype(np.float32) ** 2).astype(np.float32)
+        has_uv = u_da is not None and v_da is not None
+        has_swh = swh_da is not None
+        if not has_uv and not has_swh:
+            raise KeyError(
+                f"变量缺失，需至少包含 [u10,v10] 或 [swh]。data_vars={list(ds.data_vars)}"
+            )
+        if has_uv:
+            u = _to_time_series_1d(u_da.values)  # type: ignore[union-attr]
+            v = _to_time_series_1d(v_da.values)  # type: ignore[union-attr]
+            wind = np.sqrt(u.astype(np.float32) ** 2 + v.astype(np.float32) ** 2).astype(np.float32)
+        else:
+            wind = np.empty((0,), dtype=np.float32)
+        if has_swh:
+            wave = _to_time_series_1d(swh_da.values).astype(np.float32)  # type: ignore[union-attr]
+            used_wave_fallback = 0
+        elif has_uv:
+            wave = wind.copy()
             used_wave_fallback = 1
         else:
-            swh = _to_time_series_1d(swh_da.values)
-            t = min(len(u), len(v), len(swh))
-            u, v, swh = u[:t], v[:t], swh[:t]
-            used_wave_fallback = 0
-        wind = np.sqrt(u.astype(np.float32) ** 2 + v.astype(np.float32) ** 2).astype(np.float32)
-        wave = swh.astype(np.float32)
-        feat = np.stack([wind, wave], axis=-1)
+            wave = np.empty((0,), dtype=np.float32)
+
+        if wind.size and wave.size:
+            t = min(len(wind), len(wave))
+            feat = np.stack([wind[:t], wave[:t]], axis=-1)
+        elif wind.size:
+            feat = np.stack([wind, np.full_like(wind, np.nan)], axis=-1)
+        elif wave.size:
+            feat = np.stack([np.full_like(wave, np.nan), wave], axis=-1)
+        else:
+            feat = np.empty((0, 2), dtype=np.float32)
+
         bad = int(np.sum(~np.isfinite(feat)))
         if bad:
             feat = np.nan_to_num(feat, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
         return feat, {
             "non_finite_replaced": bad,
-            "time_steps": int(t),
+            "time_steps": int(feat.shape[0]),
             "used_wave_fallback": used_wave_fallback,
+            "has_wind": int(has_uv),
+            "has_wave": int(has_swh),
         }
     finally:
         ds.close()
@@ -168,8 +185,17 @@ def _save_split(path: str, x: np.ndarray, y: np.ndarray) -> None:
 def _concat_series(nc_files: list[Path]) -> tuple[np.ndarray, dict[str, int]]:
     if not nc_files:
         return np.empty((0, 2), dtype=np.float32), {"files_used": 0, "non_finite_replaced": 0}
-    arrs: list[np.ndarray] = []
-    meta = {"files_used": 0, "non_finite_replaced": 0, "files_skipped": 0, "used_wave_fallback": 0}
+    wind_parts: list[np.ndarray] = []
+    wave_parts: list[np.ndarray] = []
+    meta = {
+        "files_used": 0,
+        "non_finite_replaced": 0,
+        "files_skipped": 0,
+        "used_wave_fallback": 0,
+        "wind_only_files": 0,
+        "wave_only_files": 0,
+        "both_vars_files": 0,
+    }
     for fp in nc_files:
         try:
             feat, m = _extract_wind_wave_series(fp)
@@ -177,13 +203,45 @@ def _concat_series(nc_files: list[Path]) -> tuple[np.ndarray, dict[str, int]]:
             print(f"警告: 跳过变量不完整文件 {fp.name}: {e}", file=sys.stderr)
             meta["files_skipped"] += 1
             continue
-        arrs.append(feat)
         meta["files_used"] += 1
         meta["non_finite_replaced"] += int(m.get("non_finite_replaced", 0))
         meta["used_wave_fallback"] += int(m.get("used_wave_fallback", 0))
-    if not arrs:
+        has_wind = int(m.get("has_wind", 0)) == 1
+        has_wave = int(m.get("has_wave", 0)) == 1
+        if has_wind and has_wave:
+            meta["both_vars_files"] += 1
+        elif has_wind:
+            meta["wind_only_files"] += 1
+        elif has_wave:
+            meta["wave_only_files"] += 1
+        if feat.shape[0] == 0:
+            continue
+        if has_wind:
+            wind_parts.append(feat[:, 0].astype(np.float32))
+        if has_wave:
+            wave_parts.append(feat[:, 1].astype(np.float32))
+
+    if not wind_parts and not wave_parts:
         return np.empty((0, 2), dtype=np.float32), meta
-    return np.concatenate(arrs, axis=0), meta
+    if wind_parts:
+        wind = np.concatenate(wind_parts, axis=0)
+    else:
+        wind = np.empty((0,), dtype=np.float32)
+    if wave_parts:
+        wave = np.concatenate(wave_parts, axis=0)
+    else:
+        wave = np.empty((0,), dtype=np.float32)
+    if wind.size == 0 and wave.size > 0:
+        wind = wave.copy()
+        meta["used_wave_fallback"] += 1
+    if wave.size == 0 and wind.size > 0:
+        wave = wind.copy()
+        meta["used_wave_fallback"] += 1
+    t = min(wind.size, wave.size)
+    if t == 0:
+        return np.empty((0, 2), dtype=np.float32), meta
+    ts = np.stack([wind[:t], wave[:t]], axis=-1).astype(np.float32)
+    return ts, meta
 
 
 def build_anomaly_from_netcdf(
