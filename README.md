@@ -184,4 +184,7 @@ bash scripts/run_eddy_round2.sh
 
 # 收集 eddy 可直接贴到企业材料②的图与指标
 python scripts/collect_eddy_materials.py --src-root AutoDL/outputs/eddy --out-dir submission/figures/eddy_latest
+
+# anomaly 命题方年份划分一键链路（预处理→训练→val/test评估→刷新表）
+bash scripts/run_anomaly_round2.sh
 ```
