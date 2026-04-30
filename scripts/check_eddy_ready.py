@@ -31,6 +31,11 @@ def _resolve_dataset_path(dataset_yaml: Path, data: dict) -> Path:
     p = Path(base)
     if p.is_absolute():
         return p
+    # Ultralytics 常见写法是 path: data/processed/eddy（相对仓库根），
+    # 若这里盲目按 dataset.yaml 同目录拼接会得到 .../data/processed/eddy/data/processed/eddy。
+    cwd_candidate = (Path.cwd() / p).resolve()
+    if cwd_candidate.exists():
+        return cwd_candidate
     return (dataset_yaml.parent / p).resolve()
 
 
