@@ -1,7 +1,7 @@
 ﻿module,split,level,metric,value,passed,source_file
-eddy,val,2,mask_map50,0.6827275375638714,False,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
-eddy,val,2,split,val,False,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
-eddy,val,2,note,Ultralytics seg mAP@0.5；与命题方 IoU 口径需人工核对,False,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
+eddy,val,2,mask_map50,0.7699028344676595,True,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
+eddy,val,2,split,val,True,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
+eddy,val,2,note,Ultralytics seg mAP@0.5；与命题方 IoU 口径需人工核对,True,F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json
 hydro,-,2,rmse_per_feature.temp,0.19916462898254395,False,F:\创赛\AutoDL\outputs\hydro\metrics_summary.json
 hydro,-,2,rmse_per_feature.sal,0.10846047103404999,False,F:\创赛\AutoDL\outputs\hydro\metrics_summary.json
 hydro,-,2,rmse_per_feature.u,1.145885705947876,False,F:\创赛\AutoDL\outputs\hydro\metrics_summary.json
