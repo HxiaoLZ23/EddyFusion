@@ -178,4 +178,7 @@ python -m src.preprocess.eddy_dataset --export-yolo --data-config config/data.ya
 # 再训练（需已安装 ultralytics，且 dataset.yaml 已生成在 data/processed/eddy/）
 python scripts/check_eddy_ready.py --dataset-yaml data/processed/eddy/dataset.yaml
 python -m src.eddy.train --config config/eddy.yaml
+
+# 第二轮增样本复训（导出→体检→训练→评估→刷新材料表）
+bash scripts/run_eddy_round2.sh
 ```
