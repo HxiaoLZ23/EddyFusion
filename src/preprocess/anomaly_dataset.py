@@ -85,11 +85,13 @@ def discover_anomaly_nc_paths(
     return files
 
 
-def _pick_dataarray(ds: Any, candidates: list[str]) -> Any:
+def _pick_dataarray(ds: Any, candidates: list[str], *, required: bool = True) -> Any | None:
     for name in candidates:
         if name in ds:
             return ds[name]
-    raise KeyError(f"变量缺失，候选={candidates}，data_vars={list(ds.data_vars)}")
+    if required:
+        raise KeyError(f"变量缺失，候选={candidates}，data_vars={list(ds.data_vars)}")
+    return None
 
 
 def _to_time_series_1d(arr: np.ndarray) -> np.ndarray:
@@ -104,19 +106,33 @@ def _extract_wind_wave_series(nc_path: Path) -> tuple[np.ndarray, dict[str, int]
     try:
         u_da = _pick_dataarray(ds, ["u10", "U10", "10u", "uwnd", "u_wind"])
         v_da = _pick_dataarray(ds, ["v10", "V10", "10v", "vwnd", "v_wind"])
-        swh_da = _pick_dataarray(ds, ["swh", "SWH", "hs", "wave_height", "significant_wave_height"])
+        swh_da = _pick_dataarray(
+            ds, ["swh", "SWH", "hs", "wave_height", "significant_wave_height"], required=False
+        )
         u = _to_time_series_1d(u_da.values)
         v = _to_time_series_1d(v_da.values)
-        swh = _to_time_series_1d(swh_da.values)
-        t = min(len(u), len(v), len(swh))
-        u, v, swh = u[:t], v[:t], swh[:t]
+        # 某些命题方风场文件仅含 u10/v10；缺 SWH 时用风速模作近似占位并记录降级。
+        if swh_da is None:
+            t = min(len(u), len(v))
+            u, v = u[:t], v[:t]
+            swh = np.sqrt(u.astype(np.float32) ** 2 + v.astype(np.float32) ** 2).astype(np.float32)
+            used_wave_fallback = 1
+        else:
+            swh = _to_time_series_1d(swh_da.values)
+            t = min(len(u), len(v), len(swh))
+            u, v, swh = u[:t], v[:t], swh[:t]
+            used_wave_fallback = 0
         wind = np.sqrt(u.astype(np.float32) ** 2 + v.astype(np.float32) ** 2).astype(np.float32)
         wave = swh.astype(np.float32)
         feat = np.stack([wind, wave], axis=-1)
         bad = int(np.sum(~np.isfinite(feat)))
         if bad:
             feat = np.nan_to_num(feat, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
-        return feat, {"non_finite_replaced": bad, "time_steps": int(t)}
+        return feat, {
+            "non_finite_replaced": bad,
+            "time_steps": int(t),
+            "used_wave_fallback": used_wave_fallback,
+        }
     finally:
         ds.close()
         if tmp_copy is not None:
@@ -153,12 +169,20 @@ def _concat_series(nc_files: list[Path]) -> tuple[np.ndarray, dict[str, int]]:
     if not nc_files:
         return np.empty((0, 2), dtype=np.float32), {"files_used": 0, "non_finite_replaced": 0}
     arrs: list[np.ndarray] = []
-    meta = {"files_used": 0, "non_finite_replaced": 0}
+    meta = {"files_used": 0, "non_finite_replaced": 0, "files_skipped": 0, "used_wave_fallback": 0}
     for fp in nc_files:
-        feat, m = _extract_wind_wave_series(fp)
+        try:
+            feat, m = _extract_wind_wave_series(fp)
+        except KeyError as e:
+            print(f"警告: 跳过变量不完整文件 {fp.name}: {e}", file=sys.stderr)
+            meta["files_skipped"] += 1
+            continue
         arrs.append(feat)
         meta["files_used"] += 1
         meta["non_finite_replaced"] += int(m.get("non_finite_replaced", 0))
+        meta["used_wave_fallback"] += int(m.get("used_wave_fallback", 0))
+    if not arrs:
+        return np.empty((0, 2), dtype=np.float32), meta
     return np.concatenate(arrs, axis=0), meta
 
 
@@ -233,7 +257,9 @@ def build_anomaly_from_netcdf(
             x, y = _build_windows(series, window_steps, horizon_steps, stride)
             _save_split(paths[key_map[split]], x, y)
             meta[f"{split}_files_used"] = int(m["files_used"])
+            meta[f"{split}_files_skipped"] = int(m.get("files_skipped", 0))
             meta[f"{split}_non_finite_replaced"] = int(m["non_finite_replaced"])
+            meta[f"{split}_used_wave_fallback"] = int(m.get("used_wave_fallback", 0))
             meta[f"{split}_samples"] = int(x.shape[0])
     else:
         all_files = discover_anomaly_nc_paths(raw_root, subdir, max_daily_files=max_daily_files)
@@ -249,7 +275,9 @@ def build_anomaly_from_netcdf(
         _save_split(paths["val_sequences"], x[i1:i2], y[i1:i2])
         _save_split(paths["test_sequences"], x[i2:], y[i2:])
         meta["files_used"] = int(m["files_used"])
+        meta["files_skipped"] = int(m.get("files_skipped", 0))
         meta["non_finite_replaced"] = int(m["non_finite_replaced"])
+        meta["used_wave_fallback"] = int(m.get("used_wave_fallback", 0))
         meta["samples"] = int(n)
 
     tip = resolve_path(paths["typhoon_index"])
