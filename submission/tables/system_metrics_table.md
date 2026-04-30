@@ -2,6 +2,9 @@
 
 | 模块 | split | level | 指标 | 数值 | 是否达标 | 来源文件 |
 |------|-------|-------|------|------|----------|----------|
+| eddy | val | 2 | mask_map50 | 0.6827275375638714 | False | `F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json` |
+| eddy | val | 2 | split | val | False | `F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json` |
+| eddy | val | 2 | note | Ultralytics seg mAP@0.5；与命题方 IoU 口径需人工核对 | False | `F:\创赛\AutoDL\outputs\eddy\metrics_summary_val.json` |
 | hydro | - | 2 | rmse_per_feature.temp | 0.19916462898254395 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
 | hydro | - | 2 | rmse_per_feature.sal | 0.10846047103404999 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
 | hydro | - | 2 | rmse_per_feature.u | 1.145885705947876 | False | `F:\创赛\AutoDL\outputs\hydro\metrics_summary.json` |
@@ -38,6 +41,22 @@
 | anomaly | - | 2 | rmse_wind | 5.956886291503906 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
 | anomaly | - | 2 | rmse_wave | 4.556940078735352 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
 | anomaly | - | 2 | mae_avg | 3.7661049365997314 | False | `F:\创赛\outputs\anomaly\metrics_summary.json` |
+| anomaly | test | 2 | mae_wind | 4.263944625854492 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | mae_wave | 3.2682652473449707 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | rmse_wind | 5.956886291503906 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | rmse_wave | 4.556940078735352 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | mae_avg | 3.7661049365997314 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | rmse_avg | 5.256913185119629 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | split | test | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | test | 2 | test_mae_avg | 3.7661049365997314 | False | `F:\创赛\outputs\anomaly\metrics_summary_test.json` |
+| anomaly | val | 2 | mae_wind | 2.6871089935302734 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | mae_wave | 3.842503547668457 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | rmse_wind | 3.468301773071289 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | rmse_wave | 4.910172462463379 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | mae_avg | 3.2648062705993652 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | rmse_avg | 4.189237117767334 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | split | val | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
+| anomaly | val | 2 | val_mae_avg | 3.2648062705993652 | False | `F:\创赛\outputs\anomaly\metrics_summary_val.json` |
 | hydro | - | 2 | rmse_per_feature.temp | 0.9986834526062012 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
 | hydro | - | 2 | rmse_per_feature.sal | 1.0038305521011353 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
 | hydro | - | 2 | rmse_per_feature.u | 0.996957004070282 | False | `F:\创赛\outputs\hydro\metrics_summary.json` |
