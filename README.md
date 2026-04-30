@@ -181,4 +181,7 @@ python -m src.eddy.train --config config/eddy.yaml
 
 # 第二轮增样本复训（导出→体检→训练→评估→刷新材料表）
 bash scripts/run_eddy_round2.sh
+
+# 收集 eddy 可直接贴到企业材料②的图与指标
+python scripts/collect_eddy_materials.py --src-root AutoDL/outputs/eddy --out-dir submission/figures/eddy_latest
 ```
