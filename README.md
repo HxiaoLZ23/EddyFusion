@@ -104,6 +104,21 @@ python -m src.hydro.eval --config config/hydro_hycom.yaml --ckpt outputs/hydro/b
 
 说明：单日日文件拼接后的总时间步须 ≥ `input_steps + output_steps`（见 `config/hydro_hycom.yaml`）；网格大时请用 GPU。
 
+**6. 水文创新隔离实验（L2/L1/L0）**
+
+```bash
+# 统一入口：独立输出目录，不覆盖当前稳定版
+bash scripts/run_hydro_isolated.sh l2
+bash scripts/run_hydro_isolated.sh l1
+bash scripts/run_hydro_isolated.sh l0
+```
+
+对应配置与产物目录：
+
+- `config/hydro_hycom_l2.yaml` -> `outputs/hydro_l2/`
+- `config/hydro_hycom_l1.yaml` -> `outputs/hydro_l1/`
+- `config/hydro_hycom_l0.yaml` -> `outputs/hydro_l0/`
+
 ## 目录结构
 
 与《A09-项目开发文档》一致：`config/`、`data/`、`src/`、`scripts/`、`outputs/`、`docs/`、`submission/`。命题方原始数据可置于仓库根下 **`服创数据集/`**（默认不提交，见 `.gitignore`）。
