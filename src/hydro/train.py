@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import math
 import random
 from pathlib import Path
@@ -197,6 +198,7 @@ def main() -> None:
     early_stop_patience = int(tc.get("early_stop_patience", 0))
     no_improve_epochs = 0
     plot_every_epochs = int(tc.get("plot_every_epochs", 5))
+    plot_sample_index = int(cfg.get("eval", {}).get("plot_sample_index", 0))
 
     out_dir = resolve_path(paths["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -273,12 +275,19 @@ def main() -> None:
 
         if plot_every_epochs > 0 and ep % plot_every_epochs == 0:
             try:
+                # 复用已在内存中的 val_ds，避免周期性再 np.load 一份验证集导致 RAM 翻倍、次轮 OOM
+                plot_xy = None
+                if n_va > 0:
+                    pidx = max(0, min(plot_sample_index, n_va - 1))
+                    px, py = val_ds[pidx]
+                    plot_xy = (px.detach().cpu(), py.detach().cpu())
                 files = save_hydro_example_plots(
                     model=model,
                     cfg=cfg,
                     device=device,
                     split="val",
-                    sample_index=0,
+                    sample_index=plot_sample_index,
+                    xy=plot_xy,
                     out_dir=resolve_path(paths["output_dir"]) / "figures",
                     tag=f"train_ep{ep}",
                 )
@@ -286,6 +295,10 @@ def main() -> None:
                     print(f"[plot] epoch {ep} saved {len(files)} files, e.g. {files[0]}", flush=True)
             except Exception as e:
                 print(f"[plot] epoch {ep} failed: {e}", flush=True)
+            finally:
+                gc.collect()
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
 
     if not best_path.is_file():
         print(

@@ -18,21 +18,36 @@ def save_hydro_example_plots(
     device: torch.device,
     split: str = "val",
     sample_index: int = 0,
+    xy: tuple[torch.Tensor, torch.Tensor] | None = None,
     out_dir: str | Path = "outputs/hydro/figures",
     tag: str = "eval",
 ) -> list[Path]:
-    """保存水文可视化图：四要素 t+72 空间图 + 区域均值曲线。"""
-    paths = cfg["paths"]
-    sx = f"{split}_data"
-    sy = f"{split}_label"
-    ds = HydroNpzDataset(paths[sx], paths[sy])
-    if len(ds) == 0:
-        return []
-    idx = int(max(0, min(sample_index, len(ds) - 1)))
-    x, y = ds[idx]
+    """保存水文可视化图：四要素 t+72 空间图 + 区域均值曲线。
+
+    若传入 ``xy``（单样本 ``x,y`` 均为 ``T×C×H×W`` CPU tensor），则不再 ``np.load``
+    重复构造数据集，避免训练过程中周期性出图导致内存翻倍/OOM。
+    """
+    if xy is not None:
+        x, y = xy
+        if x.dim() != 4 or y.dim() != 4:
+            raise ValueError("xy 应为单样本 (T,C,H,W) 的 x 与 y")
+    else:
+        paths = cfg["paths"]
+        sx = f"{split}_data"
+        sy = f"{split}_label"
+        ds = HydroNpzDataset(paths[sx], paths[sy])
+        if len(ds) == 0:
+            return []
+        idx = int(max(0, min(sample_index, len(ds) - 1)))
+        x, y = ds[idx]
+
     model.eval()
-    pred = model(x.unsqueeze(0).to(device)).detach().cpu().numpy()[0]
-    gt = y.numpy()
+    try:
+        pred = model(x.unsqueeze(0).to(device)).detach().float().cpu().numpy()[0]
+    finally:
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+    gt = y.detach().float().numpy()
 
     feats = list(cfg["data"]["target_features"])
     outp = ensure_dir(out_dir)
@@ -45,6 +60,10 @@ def save_hydro_example_plots(
         e = np.abs(p - g)
         vmin = float(min(np.nanmin(g), np.nanmin(p)))
         vmax = float(max(np.nanmax(g), np.nanmax(p)))
+        if not np.isfinite(vmin) or not np.isfinite(vmax):
+            vmin, vmax = 0.0, 1.0
+        elif vmax - vmin < 1e-8:
+            vmax = vmin + 1e-8
 
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
         axes[0].imshow(g, cmap="viridis", vmin=vmin, vmax=vmax)
@@ -80,5 +99,6 @@ def save_hydro_example_plots(
     fig.savefig(fp_curve, dpi=200)
     plt.close(fig)
     saved.append(fp_curve)
+    plt.close("all")
     return saved
 
