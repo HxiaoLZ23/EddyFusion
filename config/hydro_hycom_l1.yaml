@@ -1,6 +1,5 @@
-# Hydro L1（轻量创新隔离实验）
-# 注意：当前仓库尚未在 forward/loss 中接入 MoT/AttnRes/EOS 实算逻辑；
-# 本配置用于隔离目录与可追踪标签，便于后续逐项接入创新组件。
+# Hydro L1（轻量创新）：MoT-lite 时序 Stem（见 mot_stem）+ EOS(T–S 软耦合)（见 hydro_train_loss）。
+# 与 L2 对齐同一数据；AttnRes 留给 L0。
 meta:
   project: "EddyFusion"
   module: "hydro"
@@ -45,6 +44,9 @@ model:
 
 mot:
   enabled: true
+  kernel_short: 3
+  kernel_long: 7
+  mid_channels: 32
 
 attn_res:
   enabled: false
@@ -90,4 +92,4 @@ eval:
   plots_dir: "outputs/hydro_l1/figures"
   plot_sample_index: 0
   metrics_file: "outputs/hydro_l1/metrics_summary.json"
-  tag_fields: ["level", "mot.enabled", "attn_res.enabled"]
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled", "loss.eos_constraint.enabled"]

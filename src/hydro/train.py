@@ -13,6 +13,7 @@ from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from src.hydro.dataset import HydroNpzDataset
 from src.hydro.model import build_model
+from src.hydro.losses import hydro_train_loss
 from src.hydro.visualize import save_hydro_example_plots
 from src.utils.config import load_yaml, pick_device, project_root, resolve_path
 
@@ -44,8 +45,9 @@ def train_epoch(
     grad_clip: float,
     grad_accum_steps: int = 1,
     max_batches: int | None = None,
+    cfg: dict | None = None,
 ) -> tuple[float, bool]:
-    """返回 (平均 train MSE, 本 epoch 是否至少执行过一次 optimizer.step)。"""
+    """返回（平均 train 损失，可为 MSE+MAE/EOS）、是否至少一次 optimizer.step。"""
     model.train()
     total = 0.0
     n = 0
@@ -58,15 +60,16 @@ def train_epoch(
             break
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
+        cfg_d = cfg or {}
         if scaler:
             with autocast("cuda", enabled=device.type == "cuda"):
                 pred = model(x)
-                loss_full = nn.functional.mse_loss(pred, y)
+                loss_full = hydro_train_loss(pred, y, cfg_d)
                 loss = loss_full / accum
             scaler.scale(loss).backward()
         else:
             pred = model(x)
-            loss_full = nn.functional.mse_loss(pred, y)
+            loss_full = hydro_train_loss(pred, y, cfg_d)
             (loss_full / accum).backward()
         bs = x.size(0)
         total += float(loss_full.item()) * bs
@@ -223,6 +226,7 @@ def main() -> None:
             grad_clip,
             grad_accum,
             max_batches=max_train_batches,
+            cfg=cfg,
         )
         run_val = (ep % val_every_epochs == 0)
         val_nrmse = validate(model, val_loader, device, max_batches=max_val_batches) if run_val else float("nan")
@@ -238,13 +242,13 @@ def main() -> None:
             )
         elif ep == 1 and stepped and not math.isfinite(tr_loss):
             print(
-                "提示: train_mse 非有限，scheduler 未步进；多为数据/nan 或 AMP，请重跑预处理或设 train.amp=false。",
+                "提示: train_loss 非有限，scheduler 未步进；多为数据/nan 或 AMP，请重跑预处理或设 train.amp=false。",
                 flush=True,
             )
         if run_val:
-            print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")
+            print(f"epoch {ep}/{epochs} train_loss={tr_loss:.6f} val_nrmse={val_nrmse:.6f}")
         else:
-            print(f"epoch {ep}/{epochs} train_mse={tr_loss:.6f} val_nrmse=SKIP(every {val_every_epochs} epochs)")
+            print(f"epoch {ep}/{epochs} train_loss={tr_loss:.6f} val_nrmse=SKIP(every {val_every_epochs} epochs)")
 
         torch.save(
             {"model": model.state_dict(), "cfg": cfg, "epoch": ep},

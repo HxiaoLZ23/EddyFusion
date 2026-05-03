@@ -51,7 +51,7 @@ attn_res:
 
 loss:
   base: "mse"
-  mae_weight: 0.1
+  mae_weight: 0
   eos_constraint:
     enabled: false
     weight: 0.1

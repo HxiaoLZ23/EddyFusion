@@ -87,10 +87,12 @@ def main() -> None:
     metrics = run_eval(cfg, ckpt, device, split=args.split)
 
     level = int(cfg["meta"]["level"])
+    eos_en = cfg.get("loss", {}).get("eos_constraint", {}).get("enabled")
     tags = {
         "level": level,
         "mot.enabled": cfg.get("mot", {}).get("enabled"),
         "attn_res.enabled": cfg.get("attn_res", {}).get("enabled"),
+        "loss.eos_constraint.enabled": eos_en,
     }
     avg_key = "val_nrmse_avg" if args.split == "val" else "test_nrmse_avg"
     avg_n = metrics.get(avg_key) or metrics.get("nrmse_avg", 0.0)

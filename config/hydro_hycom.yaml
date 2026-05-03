@@ -56,7 +56,8 @@ attn_res:
 
 loss:
   base: "mse"
-  mae_weight: 0.1
+  # 仅用 MSE 与历史 train 行为一致（mae_weight>0 时才会叠加 MAE，见 hydro_train_loss）
+  mae_weight: 0
   eos_constraint:
     enabled: false
     weight: 0.1
