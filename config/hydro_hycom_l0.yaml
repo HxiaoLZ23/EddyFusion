@@ -1,6 +1,4 @@
-# Hydro L0（全创新栈隔离实验）
-# 注意：当前仓库尚未在 forward/loss 中接入 MoT/AttnRes/EOS 实算逻辑；
-# 本配置用于隔离目录与可追踪标签，便于后续完整接入创新组件。
+# Hydro L0：MoT-lite Stem + AttnRes 颈（解码前）+ EOS/MAE 训练损失（与 L1 同损失栈）。
 meta:
   project: "EddyFusion"
   module: "hydro"
@@ -45,11 +43,16 @@ model:
 
 mot:
   enabled: true
+  kernel_short: 3
+  kernel_long: 7
+  mid_channels: 32
 
 attn_res:
   enabled: true
   type: "block"
   num_blocks: 8
+  reduction: 4
+  pre_norm: true
 
 loss:
   base: "mse"
@@ -90,4 +93,4 @@ eval:
   plots_dir: "outputs/hydro_l0/figures"
   plot_sample_index: 0
   metrics_file: "outputs/hydro_l0/metrics_summary.json"
-  tag_fields: ["level", "mot.enabled", "attn_res.enabled"]
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled", "attn_res.type", "loss.eos_constraint.enabled"]

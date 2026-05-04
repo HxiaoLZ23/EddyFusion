@@ -67,12 +67,14 @@ class HydroBaseline(nn.Module):
         use_element_attention: bool = True,
         element_attention_hidden: int = 64,
         use_encoder_checkpoint: bool = False,
+        attn_neck: nn.Module | None = None,
     ):
         super().__init__()
         self.t_out = t_out
         self.out_channels = out_channels
         self.use_element_attention = use_element_attention
         self.use_encoder_checkpoint = use_encoder_checkpoint
+        self.attn_neck = attn_neck
 
         self.in_proj = nn.Conv2d(in_channels, hidden_dim, kernel_size=1)
         self.cells = nn.ModuleList(
@@ -142,6 +144,9 @@ class HydroBaseline(nn.Module):
         if self.se is not None:
             w_att = self.se(feat)
             feat = feat * w_att
+
+        if self.attn_neck is not None:
+            feat = self.attn_neck(feat)
 
         dec = self.decoder(feat)
         _, _, hh, ww = dec.shape

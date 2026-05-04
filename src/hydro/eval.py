@@ -88,10 +88,12 @@ def main() -> None:
 
     level = int(cfg["meta"]["level"])
     eos_en = cfg.get("loss", {}).get("eos_constraint", {}).get("enabled")
+    ar = cfg.get("attn_res", {}) or {}
     tags = {
         "level": level,
         "mot.enabled": cfg.get("mot", {}).get("enabled"),
-        "attn_res.enabled": cfg.get("attn_res", {}).get("enabled"),
+        "attn_res.enabled": ar.get("enabled"),
+        "attn_res.type": ar.get("type"),
         "loss.eos_constraint.enabled": eos_en,
     }
     avg_key = "val_nrmse_avg" if args.split == "val" else "test_nrmse_avg"
