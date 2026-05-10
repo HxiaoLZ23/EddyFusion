@@ -5,6 +5,76 @@ import shutil
 
 from src.utils.config import load_yaml, resolve_path
 
+# `model.train(...)` 已由本文件显式传入的键，勿从 yaml 重复转发
+_TRAIN_RESERVED = frozenset(
+    {
+        "device",
+        "epochs",
+        "batch_size",
+        "workers",
+        "amp",
+        "pretrained",
+        "run_name",
+        "name",
+    }
+)
+# Ultralytics YOLO 训练常见可调项（按需写在 config train 段）
+_ULTRA_EXTRA_KEYS = frozenset(
+    {
+        "lr0",
+        "lrf",
+        "momentum",
+        "weight_decay",
+        "warmup_epochs",
+        "warmup_momentum",
+        "warmup_bias_lr",
+        "cos_lr",
+        "close_mosaic",
+        "patience",
+        "seed",
+        "optimizer",
+        "label_smoothing",
+        "freeze",
+        "rect",
+        "single_cls",
+        "deterministic",
+        "plots",
+        "verbose",
+        "val",
+        "overlap_mask",
+        "mask_ratio",
+        "dropout",
+        "mosaic",
+        "mixup",
+        "copy_paste",
+        "copy_paste_mode",
+        "auto_augment",
+        "erasing",
+        "degrees",
+        "translate",
+        "scale",
+        "shear",
+        "perspective",
+        "flipud",
+        "fliplr",
+        "hsv_h",
+        "hsv_s",
+        "hsv_v",
+        "bgr",
+    }
+)
+
+
+def _ultra_train_extras(tc: dict) -> dict:
+    """从 yaml ``train`` 段提取转发给 Ultralytics 的额外参数。"""
+    out: dict = {}
+    for k, v in tc.items():
+        if k in _TRAIN_RESERVED or v is None:
+            continue
+        if k in _ULTRA_EXTRA_KEYS:
+            out[k] = v
+    return out
+
 
 def _dataset_channels(dataset_yaml_path) -> int:
     p = resolve_path(dataset_yaml_path)
@@ -74,23 +144,26 @@ def main() -> None:
     if device == "cuda":
         device = 0
 
-    name = "train"
-    model.train(
+    run_name = str(tc.get("run_name") or tc.get("name") or "train")
+    extras = _ultra_train_extras(tc)
+    train_kw = dict(
         data=str(dataset_yaml),
         epochs=int(tc["epochs"]),
         batch=int(tc["batch_size"]),
         imgsz=imgsz,
         device=device,
         project=str(out),
-        name=name,
+        name=run_name,
         exist_ok=True,
         workers=int(tc.get("workers", 4)),
         amp=bool(tc.get("amp", True)),
         pretrained=use_pretrained,
     )
+    train_kw.update(extras)
+    model.train(**train_kw)
 
-    trained_best = out / name / "weights" / "best.pt"
-    trained_last = out / name / "weights" / "last.pt"
+    trained_best = out / run_name / "weights" / "best.pt"
+    trained_last = out / run_name / "weights" / "last.pt"
     if trained_best.is_file():
         shutil.copy2(trained_best, out / "best.pt")
         print("已复制 best.pt ->", out / "best.pt")

@@ -7,7 +7,7 @@
 示例：
   python scripts/eddy_inference_ablate.py --images data/processed/eddy/images/val --ckpt outputs/eddy/best.pt
   # 8 通道权重 + 导出带 .npy 时：
-  python scripts/eddy_inference_ablate.py --images .../images/val --ckpt outputs/eddy_enh/best.pt --use-npy
+  python scripts/eddy_inference_ablate.py --images .../images/val --ckpt AutoDL/outputs/eddy_enh/best.pt --use-npy
 """
 
 from __future__ import annotations

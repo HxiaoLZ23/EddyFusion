@@ -6,7 +6,7 @@
 示例：
   python scripts/eddy_write_val_test_map_table.py \\
     --row baseline:outputs/eddy/metrics_summary_val.json:outputs/eddy/metrics_summary_test.json \\
-    --row enh8_mc:outputs/eddy_enh/metrics_summary_val.json:outputs/eddy_enh/metrics_summary_test.json \\
+    --row enh8_mc:AutoDL/outputs/eddy_enh/metrics_summary_val.json:AutoDL/outputs/eddy_enh/metrics_summary_test.json \\
     --out-csv submission/tables/eddy_map_val_test.csv \\
     --out-md submission/tables/eddy_map_val_test.md
 """

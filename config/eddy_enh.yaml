@@ -9,7 +9,8 @@ meta:
 
 paths:
   dataset_yaml: "data/processed/eddy_enh/dataset.yaml"
-  output_dir: "outputs/eddy_enh"
+  # 云机惯例：写入 AutoDL/（已在 .gitignore）；日志与权重形如 AutoDL/outputs/eddy_enh/train/
+  output_dir: "AutoDL/outputs/eddy_enh"
 
 model:
   backbone: "yolov8n-seg"      # channels<=3 时仍作 COCO 预训练权重名
@@ -20,10 +21,22 @@ model:
 train:
   device: "cuda"
   epochs: 100
-  batch_size: 8
+  batch_size: 8                 # 显存允许可提到 12–16，有利于 BN 稳定
   workers: 4
-  amp: true
-  pretrained: true               # 仅对 3ch 生效；多通道时在 train.py 中强制 False
+  amp: true                      # 若 loss/nan 或指标异常跳变，可改 false 试对比
+  pretrained: true               # 仅对 3ch 生效；8ch 时 train.py 会强制 pretrained=false
+  run_name: train                # Ultralytics 子目录名：.../output_dir/train/weights/*.pt
+
+  # 8 通道且无 COCO 首层对齐时近似「从零」，默认 YOLO lr+mosaic 易使 val 曲线抖动；以下为偏稳设置（可按 GPU 再调）
+  seed: 42
+  lr0: 0.004
+  lrf: 0.01
+  warmup_epochs: 8
+  cos_lr: true
+  close_mosaic: 15
+  patience: 150
+  mosaic: 0.7
+  mixup: 0.0
 
 eval:
-  metrics_file: "outputs/eddy_enh/metrics_summary.json"
+  metrics_file: "AutoDL/outputs/eddy_enh/metrics_summary.json"
