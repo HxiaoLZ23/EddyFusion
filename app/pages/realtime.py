@@ -119,8 +119,8 @@ def _render_history_table_fixed(rows: list[dict[str, Any]], n_show: int = 10) ->
 
 
 def render(*, inference_service: InferenceService) -> None:
-    st.title("实时输入（Mock）")
-    st.caption("当前为演示版：实时输入 + 队列 + 限频，推理使用 Mock。")
+    st.title("实时输入（真实推理优先）")
+    st.caption("实时输入 + 队列 + 限频；默认走真实涡旋推理，失败会在状态中提示。")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -184,7 +184,7 @@ def render(*, inference_service: InferenceService) -> None:
     result_box = panel_cols[0].empty()
     info_box = panel_cols[1].empty()
     alert_box = st.empty()
-    st.subheader("实时历史（最近 50 条）")
+    st.subheader("实时历史（最近 10 条）")
     history_box = st.empty()
 
     def _render_live_block() -> None:
@@ -277,6 +277,14 @@ def render(*, inference_service: InferenceService) -> None:
         result = pipeline.maybe_infer(inference_service, task_id=st.session_state["realtime_task_id"])
         if result is not None:
             st.session_state["realtime_last_result"] = result
+            ann = result.get("annotated_frame_bgr")
+            if ann is not None:
+                st.session_state["realtime_last_frame"] = ann
+                _render_fixed_frame(
+                    frame_slot,
+                    ann,
+                    caption=f"实时识别框 @ {time.strftime('%H:%M:%S', time.localtime(ts))}",
+                )
             hist = st.session_state["realtime_history"]
             hist.append(
                 {
@@ -285,7 +293,7 @@ def render(*, inference_service: InferenceService) -> None:
                     "status": result.get("status", "unknown"),
                 }
             )
-            st.session_state["realtime_history"] = hist[-50:]
+            st.session_state["realtime_history"] = hist[-10:]
 
         last = st.session_state.get("realtime_last_result")
         with result_box.container():

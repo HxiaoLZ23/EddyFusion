@@ -1,0 +1,201 @@
+"""水文扩展评估指标：逐通道 MAE/RMSE、相对持久性 Skill、Pearson、可选反标准化误差。"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+
+from src.hydro.dataset import HydroNpzDataset
+from src.hydro.model import build_model
+
+
+def _persistence_baseline(y: torch.Tensor, x_last: torch.Tensor) -> torch.Tensor:
+    """y: (B,T,C,H,W)；x_last: (B,C,H,W) 上一时刻观测，复制为全时域预测。"""
+    b, tout, _, h, w = y.shape
+    return x_last.unsqueeze(1).expand(b, tout, -1, h, w).contiguous()
+
+
+@torch.no_grad()
+def evaluate_extended_on_loader(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    *,
+    feature_names: list[str],
+    mean_1d: np.ndarray | None = None,
+    std_1d: np.ndarray | None = None,
+    max_batches: int | None = None,
+) -> dict[str, Any]:
+    """在 val/test loader 上累计扩展指标。"""
+    c_out = len(feature_names)
+    n_total = 0.0  # 每通道 B*T*H*W 累计（各通道相同）
+
+    sse_m = torch.zeros(c_out, dtype=torch.float64, device="cpu")  # MSE accum (sum squared err)
+    sae_m = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sse_p = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sae_p = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+
+    # Pearson: E[xy]-E[x]E[y] over flattened B,T,H,W per channel
+    sum_p = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sum_y = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sum_p2 = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sum_y2 = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sum_py = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+
+    eps = 1e-12
+    n_batch = 0
+    model.eval()
+
+    for x, y in loader:
+        x = x.to(device)
+        y = y.to(device)
+        pred = model(x)
+
+        persist = _persistence_baseline(y, x[:, -1])
+
+        bd = lambda t: torch.permute(t, (0, 1, 3, 4, 2)).contiguous()  # B T H W C
+        pn = bd(pred).double()
+        yn = bd(y).double()
+        per = bd(persist).double()
+
+        sse_m += ((pn - yn) ** 2).reshape(-1, c_out).sum(dim=0)
+        sae_m += (pn - yn).abs().reshape(-1, c_out).sum(dim=0)
+        sse_p += ((per - yn) ** 2).reshape(-1, c_out).sum(dim=0)
+        sae_p += (per - yn).abs().reshape(-1, c_out).sum(dim=0)
+
+        flat = pn.reshape(-1, c_out)
+        sum_p += flat.sum(dim=0)
+        sum_y += yn.reshape(-1, c_out).sum(dim=0)
+        sum_p2 += (pn**2).reshape(-1, c_out).sum(dim=0)
+        sum_y2 += (yn**2).reshape(-1, c_out).sum(dim=0)
+        sum_py += (pn * yn).reshape(-1, c_out).sum(dim=0)
+        n_total += float(pn.reshape(-1, c_out).shape[0])
+
+        n_batch += 1
+        if max_batches is not None and n_batch >= int(max_batches):
+            break
+
+    nt = max(n_total, eps)
+    mse_m_np = (sse_m / nt).numpy()
+    mse_p_np = (sse_p / nt).numpy()
+    rmse = {feature_names[i]: float(np.sqrt(mse_m_np[i])) for i in range(c_out)}
+    mae = {feature_names[i]: float((sae_m[i] / nt).item()) for i in range(c_out)}
+    rmse_pers = {feature_names[i]: float(np.sqrt(mse_p_np[i])) for i in range(c_out)}
+
+    skill = {}
+    for i, name in enumerate(feature_names):
+        mp = float(mse_p_np[i])
+        mm = float(mse_m_np[i])
+        skill[name] = float(1.0 - mm / max(mp, eps)) if mp > eps else None
+
+    pearson: dict[str, float | None] = {}
+    n_all = nt
+    for i, name in enumerate(feature_names):
+        n = float(n_all)
+        if n <= 1:
+            pearson[name] = None
+            continue
+        s_p = float(sum_p[i])
+        s_y = float(sum_y[i])
+        s_pp = float(sum_p2[i])
+        s_yy = float(sum_y2[i])
+        s_py = float(sum_py[i])
+        num = n * s_py - s_p * s_y
+        vx = n * s_pp - s_p * s_p
+        vy = n * s_yy - s_y * s_y
+        denom = vx * vy
+        if denom <= eps:
+            pearson[name] = None
+        else:
+            pearson[name] = float(num / np.sqrt(max(denom, eps)))
+
+    out: dict[str, Any] = {
+        "mae_per_feature": mae,
+        "rmse_per_feature": rmse,
+        "mse_persistence_per_feature": {feature_names[i]: float(mse_p_np[i]) for i in range(c_out)},
+        "rmse_persistence_per_feature": rmse_pers,
+        "skill_vs_persistence": skill,
+        "pearson_per_feature": pearson,
+        "mse_model_per_feature": {feature_names[i]: float(mse_m_np[i]) for i in range(c_out)},
+        "n_summed_per_channel_dim": nt,
+    }
+
+    if mean_1d is not None and std_1d is not None:
+        mu = np.asarray(mean_1d, dtype=np.float64).reshape(-1)
+        sd = np.asarray(std_1d, dtype=np.float64).reshape(-1)
+        if mu.shape[0] == c_out == sd.shape[0]:
+            out["rmse_physical_scale"] = {
+                feature_names[i]: float(np.sqrt(mse_m_np[i]) * sd[i]) for i in range(c_out)
+            }
+            out["note_physical_scale"] = "rmse_physical ≈ RMSE(norm) * std[channel]（假定目标与预报同一 z-score 统计量）"
+
+    out["rmse_avg"] = float(np.mean([rmse[f] for f in feature_names]))
+    out["mae_avg"] = float(np.mean([mae[f] for f in feature_names]))
+    skills_valid = [s for s in skill.values() if s is not None]
+    out["skill_avg"] = float(np.mean(skills_valid)) if skills_valid else None
+
+    pears = [p for p in pearson.values() if p is not None]
+    out["pearson_avg"] = float(np.mean(pears)) if pears else None
+
+    return out
+
+
+@torch.no_grad()
+def evaluate_checkpoint_extended(
+    cfg: dict[str, Any],
+    ckpt: Path | str,
+    device: torch.device,
+    *,
+    split: str = "val",
+    stats_npz_path: Path | str | None = None,
+    max_batches: int | None = None,
+) -> dict[str, Any]:
+    paths = cfg["paths"]
+    sx = f"{split}_data"
+    sy = f"{split}_label"
+    if sx not in paths or sy not in paths:
+        raise KeyError(f"paths 缺少 {sx}/{sy}")
+    ds = HydroNpzDataset(paths[sx], paths[sy])
+    bs = max(1, int(cfg["train"].get("eval_batch_size", cfg["train"].get("batch_size", 1))))
+    loader = DataLoader(ds, batch_size=bs, shuffle=False, num_workers=0)
+
+    ckpt = Path(ckpt)
+    model = build_model(cfg).to(device)
+    try:
+        state = torch.load(ckpt, map_location=device, weights_only=False)
+    except TypeError:
+        state = torch.load(ckpt, map_location=device)
+    model.load_state_dict(state["model"])
+
+    mean_1d = None
+    std_1d = None
+    if stats_npz_path:
+        zp = Path(stats_npz_path)
+        if zp.is_file():
+            z = np.load(zp)
+            mean = z["mean"]
+            std = z["std"]
+            mean_1d = np.asarray(mean.reshape(-1), dtype=np.float64)
+            std_1d = np.asarray(std.reshape(-1), dtype=np.float64)
+            feats = list(z["features"]) if "features" in z.files else []
+            targ = cfg["data"]["target_features"]
+            if feats and list(feats) != targ:
+                # 仍可尝试按索引截断对齐
+                if len(feats) >= len(targ):
+                    mean_1d = mean_1d[: len(targ)]
+                    std_1d = std_1d[: len(targ)]
+
+    names = list(cfg["data"]["target_features"])
+    return evaluate_extended_on_loader(
+        model,
+        loader,
+        device,
+        feature_names=names,
+        mean_1d=mean_1d,
+        std_1d=std_1d,
+        max_batches=max_batches,
+    )

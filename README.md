@@ -202,4 +202,9 @@ python scripts/collect_eddy_materials.py --src-root AutoDL/outputs/eddy --out-di
 
 # anomaly 命题方年份划分一键链路（预处理→训练→val/test评估→刷新表）
 bash scripts/run_anomaly_round2.sh
+
+# 台风知识库一键构建（下载→索引→案例）
+bash scripts/run_typhoon_kb.sh
+# Windows:
+# powershell -ExecutionPolicy Bypass -File scripts/run_typhoon_kb.ps1
 ```

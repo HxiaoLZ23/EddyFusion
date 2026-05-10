@@ -68,3 +68,6 @@ submission/**/*.pdf
 AutoDL/
 app/data/media/*
 !app/data/media/.gitkeep
+
+# Streamlit / 运行时生成的预览帧（量大，勿提交）
+app/data/eddy_preview/

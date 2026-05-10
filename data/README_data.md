@@ -9,6 +9,8 @@
 | **`hydro/`** | 水文 ConvLSTM 用 npz | 执行 `python -m src.preprocess.hydro_dataset ... --from-nc` 后生成 `X_*.npz` / `y_*.npz`；**仅跑水文训练时只需本目录有数据** |
 | `eddy/` | 涡旋等 | 运行对应 `preprocess.eddy_*` 或项目内涡旋预处理脚本后 |
 | `anomaly/` | 风-浪异常等 | 运行对应 `preprocess.anomaly_*` 后 |
+| `raw/typhoon/` | 台风公开数据源缓存（IBTrACS/CMA） | 运行 `scripts/download_typhoon_data.py` 或 `scripts/run_typhoon_kb.*` 后 |
+| `processed/anomaly/typhoon_kb/` | 台风知识库事件索引与检索产物 | 运行 `scripts/build_typhoon_kb.py` 后生成 `events.json/csv`、`retrieval_index.json` |
 | `stats/` | 标准化等统计量 | 水文预处理会写入如 `hydro_zscore.npz` |
 
 因此仅做 **HYCOM 水文**时，`config/hydro_hycom.yaml` 只读 **`data/processed/hydro/`**；**`anomaly/`、`eddy/` 为空是正常现象**。

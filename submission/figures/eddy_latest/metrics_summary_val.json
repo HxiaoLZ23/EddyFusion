@@ -1,0 +1,14 @@
+{
+  "module": "eddy",
+  "level": 2,
+  "metrics": {
+    "mask_map50": 0.7699028344676595,
+    "split": "val",
+    "note": "Ultralytics seg mAP@0.5；与命题方 IoU 口径需人工核对"
+  },
+  "passed": true,
+  "tags": {
+    "level": 2,
+    "eval_split": "val"
+  }
+}

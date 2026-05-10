@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy as np
 
+from services.eddy_demo_service import EddyDemoService
+
 @dataclass
 class InferenceInput:
     source_type: str  # upload | camera | rtsp
@@ -20,6 +22,11 @@ class InferenceInput:
 @dataclass
 class InferenceService:
     mode: str = "mock"
+    eddy_model_path: str = "outputs/eddy/best.pt"
+    eddy_conf: float = 0.25
+    eddy_iou: float = 0.45
+    eddy_max_frames: int = 120
+    eddy_frame_stride: int = 10
 
     def run(self, input_data: InferenceInput) -> dict[str, Any]:
         if self.mode == "real":
@@ -54,17 +61,52 @@ class InferenceService:
         }
 
     def _run_real(self, input_data: InferenceInput) -> dict[str, Any]:
-        return {
-            "task_id": input_data.task_id,
-            "mode": "real",
-            "source_type": input_data.source_type,
-            "video_path": input_data.video_path,
-            "status": "not_implemented",
-            "message": "真实推理适配层已预留，后续将对接 src.anomaly.detect 与 report。",
-            "timeline": [],
-        }
+        service = EddyDemoService(
+            model_path=self.eddy_model_path,
+            conf=float(self.eddy_conf),
+            iou=float(self.eddy_iou),
+            max_frames=int(self.eddy_max_frames),
+            frame_stride=int(self.eddy_frame_stride),
+        )
+        try:
+            if input_data.frame is not None:
+                out = service.infer_frame(frame=input_data.frame, task_id=input_data.task_id)
+            elif input_data.video_path:
+                out = service.infer_video(video_path=input_data.video_path, task_id=input_data.task_id)
+            else:
+                raise ValueError("缺少输入：需提供 video_path 或 frame")
+            out["source_type"] = input_data.source_type
+            out["video_path"] = input_data.video_path
+            return out
+        except Exception as e:
+            return {
+                "task_id": input_data.task_id,
+                "mode": "real",
+                "source_type": input_data.source_type,
+                "video_path": input_data.video_path,
+                "status": "failed",
+                "message": f"真实推理失败: {e}",
+                "timeline": [],
+                "peak_score": 0.0,
+                "generated_at": int(time.time()),
+            }
 
 
-def build_inference_service(mode: str = "mock") -> InferenceService:
-    return InferenceService(mode=mode)
+def build_inference_service(
+    mode: str = "real",
+    *,
+    eddy_model_path: str = "outputs/eddy/best.pt",
+    eddy_conf: float = 0.25,
+    eddy_iou: float = 0.45,
+    eddy_max_frames: int = 120,
+    eddy_frame_stride: int = 10,
+) -> InferenceService:
+    return InferenceService(
+        mode=mode,
+        eddy_model_path=eddy_model_path,
+        eddy_conf=eddy_conf,
+        eddy_iou=eddy_iou,
+        eddy_max_frames=eddy_max_frames,
+        eddy_frame_stride=eddy_frame_stride,
+    )
 

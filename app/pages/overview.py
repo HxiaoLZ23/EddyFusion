@@ -23,10 +23,11 @@ def render(*, metrics_service: MetricsService) -> None:
     st.title("海洋环境智能分析演示")
     st.write("本演示系统用于展示三模块能力、视频输入流程与阶段性指标。")
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("涡旋识别", "准备中", "数据管线对接")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("涡旋识别", "可用", "支持真实推理与关键帧展示")
     c2.metric("水文预测", "可用", "已支持 val/test 指标读取")
     c3.metric("风浪异常", "可用(演示)", "支持视频上传与 mock 结果")
+    c4.metric("台风知识库", "可用", "支持事件检索与联动展示")
 
     st.subheader("最近指标摘要")
     summary = metrics_service.load_all()
@@ -49,5 +50,5 @@ def render(*, metrics_service: MetricsService) -> None:
                 st.warning("待生成")
                 st.caption(data.message)
 
-    st.info("建议演示路径：上传视频 -> 查看结果 -> 回到指标看板说明当前模型状态。")
+    st.info("建议演示路径：上传视频 -> 查看结果(自动台风联动) -> 台风知识库页展示候选事件与案例。")
 

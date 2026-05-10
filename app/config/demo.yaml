@@ -8,3 +8,13 @@ mock:
   anomaly_threshold: 0.5
   summary_template: "检测到中后段异常增强趋势，建议人工复核关键时段。"
 
+typhoon_link:
+  # 结果页自动联动：默认回看时间窗（小时）
+  default_window_hours: 240
+  # 候选事件数量上限
+  default_top_k: 5
+  # 台风知识库事件索引路径
+  events_json_path: "data/processed/anomaly/typhoon_kb/events.json"
+  # 预置演示案例路径（由 scripts/demo_typhoon_kb_cases.py 生成）
+  demo_cases_path: "data/processed/anomaly/typhoon_kb/demo_cases.json"
+
