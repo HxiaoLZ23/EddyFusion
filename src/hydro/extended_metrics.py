@@ -62,17 +62,18 @@ def evaluate_extended_on_loader(
         yn = bd(y).double()
         per = bd(persist).double()
 
-        sse_m += ((pn - yn) ** 2).reshape(-1, c_out).sum(dim=0)
-        sae_m += (pn - yn).abs().reshape(-1, c_out).sum(dim=0)
-        sse_p += ((per - yn) ** 2).reshape(-1, c_out).sum(dim=0)
-        sae_p += (per - yn).abs().reshape(-1, c_out).sum(dim=0)
+        # 累计量在 CPU；batch 可能在 CUDA，须在相加前移到 CPU，避免 device 混用
+        sse_m += ((pn - yn) ** 2).reshape(-1, c_out).sum(dim=0).cpu()
+        sae_m += (pn - yn).abs().reshape(-1, c_out).sum(dim=0).cpu()
+        sse_p += ((per - yn) ** 2).reshape(-1, c_out).sum(dim=0).cpu()
+        sae_p += (per - yn).abs().reshape(-1, c_out).sum(dim=0).cpu()
 
         flat = pn.reshape(-1, c_out)
-        sum_p += flat.sum(dim=0)
-        sum_y += yn.reshape(-1, c_out).sum(dim=0)
-        sum_p2 += (pn**2).reshape(-1, c_out).sum(dim=0)
-        sum_y2 += (yn**2).reshape(-1, c_out).sum(dim=0)
-        sum_py += (pn * yn).reshape(-1, c_out).sum(dim=0)
+        sum_p += flat.sum(dim=0).cpu()
+        sum_y += yn.reshape(-1, c_out).sum(dim=0).cpu()
+        sum_p2 += (pn**2).reshape(-1, c_out).sum(dim=0).cpu()
+        sum_y2 += (yn**2).reshape(-1, c_out).sum(dim=0).cpu()
+        sum_py += (pn * yn).reshape(-1, c_out).sum(dim=0).cpu()
         n_total += float(pn.reshape(-1, c_out).shape[0])
 
         n_batch += 1
