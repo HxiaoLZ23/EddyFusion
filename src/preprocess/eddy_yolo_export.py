@@ -285,7 +285,12 @@ def build_argparser() -> argparse.ArgumentParser:
         default="data/processed/eddy",
         help="输出根目录（其下 images/{train,val,test}/ 与 labels/）",
     )
-    p.add_argument("--time-stride", type=int, default=30, help="时间维抽样步长（train/test 及未单独指定时的 val）")
+    p.add_argument(
+        "--time-stride",
+        type=int,
+        default=15,
+        help="时间维抽样步长，全局作用于 train/val/test（越小帧越多、磁盘越大；再加密 val 可用 --time-stride-val）",
+    )
     p.add_argument(
         "--time-stride-val",
         type=int,

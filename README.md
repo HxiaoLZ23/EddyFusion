@@ -196,6 +196,9 @@ git push -u origin main
 python -m src.preprocess.eddy_dataset --export-yolo --data-config config/data.yaml \
   --max-frames-per-file 3 --time-stride 60
 
+# 全量/正式训练：不传 --time-stride 时默认 15（全局 train/val/test 一起加密；更密可显式 --time-stride 7）
+python -m src.preprocess.eddy_dataset --export-yolo --out data/processed/eddy_enh --stack-physics-npy
+
 # 再训练（需已安装 ultralytics，且 dataset.yaml 已生成在 data/processed/eddy/）
 python scripts/check_eddy_ready.py --dataset-yaml data/processed/eddy/dataset.yaml
 python -m src.eddy.train --config config/eddy.yaml
