@@ -172,6 +172,7 @@ def export_yolo_pseudo(
     data_config: Path,
     out_root: Path,
     time_stride: int,
+    time_stride_val: int | None,
     max_frames_per_file: int | None,
     vote_percentiles: tuple[float, ...],
     vote_min: int,
@@ -219,8 +220,11 @@ def export_yolo_pseudo(
                 raise RuntimeError("未找到时间维度")
             tname = tdim[0]
             T = int(adt.sizes[tname])
+            stride = int(time_stride)
+            if split == "val" and time_stride_val is not None:
+                stride = max(1, int(time_stride_val))
             n_this = 0
-            for t_idx in range(0, T, int(time_stride)):
+            for t_idx in range(0, T, stride):
                 if max_frames_per_file is not None and n_this >= max_frames_per_file:
                     break
                 a = _to_hw(adt.isel({tname: t_idx}).values)
@@ -281,7 +285,13 @@ def build_argparser() -> argparse.ArgumentParser:
         default="data/processed/eddy",
         help="输出根目录（其下 images/{train,val,test}/ 与 labels/）",
     )
-    p.add_argument("--time-stride", type=int, default=30, help="时间维抽样步长（日数据建议 ≥7 控量）")
+    p.add_argument("--time-stride", type=int, default=30, help="时间维抽样步长（train/test 及未单独指定时的 val）")
+    p.add_argument(
+        "--time-stride-val",
+        type=int,
+        default=None,
+        help="仅验证集 nc 的时间步长；设小于 --time-stride 可在不爆 train 的前提下增多 val 帧（如 7）",
+    )
     p.add_argument("--max-frames-per-file", type=int, default=None, help="每个 nc 最多导出帧数（烟测用，如 5）")
     p.add_argument(
         "--vote-percentiles",
@@ -317,6 +327,7 @@ def main_argv(argv: list[str] | None = None) -> int:
         data_config=project_root() / args.data_config,
         out_root=Path(args.out),
         time_stride=args.time_stride,
+        time_stride_val=args.time_stride_val,
         max_frames_per_file=args.max_frames_per_file,
         vote_percentiles=vps,
         vote_min=args.vote_min,
