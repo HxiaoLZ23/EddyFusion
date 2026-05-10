@@ -74,7 +74,11 @@ def main() -> None:
     if args.export_yolo:
         from src.preprocess.eddy_yolo_export import main_argv
 
-        raise SystemExit(main_argv(rest))
+        # 允许写成 `--export-yolo -- --out ...`（POSIX 习惯）；子解析器不认单独的 `--`
+        er = list(rest)
+        while er and er[0] == "--":
+            er.pop(0)
+        raise SystemExit(main_argv(er))
     if rest:
         parser.error(f"未识别的参数（若导出伪标签请加 --export-yolo）: {rest}")
     if args.write_template:
