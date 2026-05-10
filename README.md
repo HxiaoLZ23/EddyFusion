@@ -45,6 +45,8 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 - 项目目录名：**EddyFusion**（注意大小写；Linux 下 `Eddyfusion` 与 `EddyFusion` 为不同路径）
 - 典型克隆/工作路径：`~/autodl-tmp/EddyFusion`（root 用户下为 `/root/autodl-tmp/EddyFusion`）
 - 下文与脚本中的「仓库根」在云服务器上即指上述路径。
+
+**路径契约（必读）**：云端与本地**整机绝对路径不一致**是正常的。示例：同一轮涡旋增强训练在云机可能是 `/root/autodl-tmp/EddyFusion/outputs/eddy_enh/train` 或 `.../AutoDL/outputs/eddy_enh/train`（取决于 `config` 里的 `paths.output_dir`），在本地则可能是 `F:\创赛\outputs\...`。仓库内 **`config/*.yaml`、`data/**/dataset.yaml`、文档与代码**均应使用 **相对仓库根** 的路径（或由 `src.utils.config.resolve_path` 解析）；**不要**把某一台 AutoDL 的 `/root/autodl-tmp/...` 写进提交的源码。若在材料中举例绝对路径，请标注「云机示意」并保持与当场 `pwd` / `output_dir` 一致。
 - **命题方数据位置二选一即可**（`config/data.yaml` 默认 `paths.raw_root: "服创数据集"`，相对仓库根解析）：
   - **放在仓库内**：`~/autodl-tmp/EddyFusion/服创数据集/`（与 `config/` 同级），则**无需**运行 `setup_fuchuang_to_data.sh`，预处理会直接读该目录。
   - **放在仓库外**（如 `~/autodl-tmp/服创数据集`，避免占满系统盘）：用 `scripts/setup_fuchuang_to_data.sh` 的 `FU_MODE=link` 在仓库根创建软链 `服创数据集` → 实际数据目录。
@@ -179,7 +181,7 @@ git push -u origin main
 | `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
 | `docs/系统架构说明.md` | 数据流与目录职责 |
 | `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
-| `docs/云端训练与目录归档.md` | **云机目录/Git 忽略边界**、水文/涡旋/异常训练与 **L0/L2 隔离脚本**产物路径、归档拷回清单 |
+| `docs/云端训练与目录归档.md` | **§0 云/本路径契约**、云机目录与 Git 边界、水文/涡旋/异常与 **L0/L2**、归档拷回清单 |
 | `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
 
 ### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）

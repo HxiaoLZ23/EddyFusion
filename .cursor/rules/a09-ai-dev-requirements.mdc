@@ -22,6 +22,7 @@ alwaysApply: true
 ## 仓库与目录
 
 - 代码根目录与 **`A09-ocean-ai/`** 约定一致（若在 `创赛/` 下，在阶段文档写明实际根路径）；保持 `config/`、`data/`、`src/`、`scripts/`、`outputs/` 等相对关系。
+- **云端与本地绝对路径不同**：训练/推理产物在云机常为 `/root/autodl-tmp/EddyFusion/...`，在本地 Windows 常为 `F:\创赛\...` 等。`config`、`dataset.yaml`、`README`、文档与 **`src/utils/config.resolve_path`** 必须以**相对仓库根**的路径为唯一契约；**禁止**在代码库中硬编码某一台机器的 `/root/`、`/home/` 盘符路径（临时调试脚本若不提交可除外）。
 - 勿将 `开发阶段文档/`、大体积数据与权重、提交用视频与敏感信息提交远程（或仅占位说明）。
 
 ## 训练与实验

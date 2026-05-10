@@ -8,7 +8,11 @@ import yaml
 
 
 def project_root() -> Path:
-    """仓库根目录（含 config/、src/）。"""
+    """仓库根目录（含 config/、src/）。
+
+    与运行时的「当前目录」无关；云端常为 ``/root/autodl-tmp/EddyFusion``，本地因人而异。
+    配置与数据中凡非绝对路径均相对本目录解析，勿在业务代码中写死某环境的绝对前缀。
+    """
     return Path(__file__).resolve().parents[2]
 
 
@@ -24,6 +28,7 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
 
 
 def resolve_path(path: str | Path) -> Path:
+    """相对路径一律相对 ``project_root()``；绝对路径原样返回（用于用户显式指定）。"""
     p = Path(path)
     if p.is_absolute():
         return p

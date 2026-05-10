@@ -9,7 +9,7 @@ meta:
 
 paths:
   dataset_yaml: "data/processed/eddy_enh/dataset.yaml"
-  # 云机惯例：写入 AutoDL/（已在 .gitignore）；日志与权重形如 AutoDL/outputs/eddy_enh/train/
+  # 相对仓库根；云机绝对路径形如 /root/autodl-tmp/EddyFusion/AutoDL/outputs/eddy_enh/train （见 README「路径契约」）
   output_dir: "AutoDL/outputs/eddy_enh"
 
 model:
