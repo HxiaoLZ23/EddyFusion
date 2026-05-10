@@ -1,5 +1,12 @@
 # 涡旋「增强1」主链：8 通道物理堆叠 npy（需导出时带 --stack-physics-npy，见 docs）
 # 与 config/eddy.yaml 并行；输出权重建议单独目录以便与 3ch 基线对照。
+#
+# 产物布局（paths 均为相对仓库根）：
+#   paths.output_dir = AutoDL/outputs/eddy_enh
+#   Ultralytics：project=output_dir，子目录 = train.train.run_name（默认 train）
+#     → AutoDL/outputs/eddy_enh/train/weights/{best,last}.pt；曲线等在 train/
+#   src/eddy/train.py 结束时复制 best.pt、last.pt → AutoDL/outputs/eddy_enh/ 根（便于 --ckpt）
+#   eval.metrics_file → AutoDL/outputs/eddy_enh/metrics_summary*.json
 meta:
   project: "EddyFusion"
   module: "eddy"
