@@ -7,6 +7,9 @@
 #     → AutoDL/outputs/eddy_enh/train/weights/{best,last}.pt；曲线等在 train/
 #   src/eddy/train.py 结束时复制 best.pt、last.pt → AutoDL/outputs/eddy_enh/ 根（便于 --ckpt）
 #   eval.metrics_file → AutoDL/outputs/eddy_enh/metrics_summary*.json
+#
+# 路径核对：若在仓库里看到 **AutoDL/outputs/train/**（少了 eddy_enh），多半是 output_dir 写成了
+#   AutoDL/outputs —— 会与其他模块/实验共用同一 Ultralytics「train」目录，曲线也更难对比。
 meta:
   project: "EddyFusion"
   module: "eddy"
@@ -28,22 +31,28 @@ model:
 train:
   device: "cuda"
   epochs: 100
-  batch_size: 8                 # 显存允许可提到 12–16，有利于 BN 稳定
+  batch_size: 8                 # 显存允许优先提到 12–16，有利于 BN 与小批量方差
   workers: 4
-  amp: true                      # 若 loss/nan 或指标异常跳变，可改 false 试对比
+  amp: false                     # 8ch 从零训练时 AMP 易伴随机数尖峰；稳定后可改 true 提速
   pretrained: true               # 仅对 3ch 生效；8ch 时 train.py 会强制 pretrained=false
   run_name: train                # Ultralytics 子目录名：.../output_dir/train/weights/*.pt
 
-  # 8 通道且无 COCO 首层对齐时近似「从零」，默认 YOLO lr+mosaic 易使 val 曲线抖动；以下为偏稳设置（可按 GPU 再调）
+  # 小数据 + 分割 + 无预训练首层：强 mosaic / 高 lr 易致 val 指标「过山车」；本轮默认再收一档
   seed: 42
-  lr0: 0.004
+  lr0: 0.0025
   lrf: 0.01
-  warmup_epochs: 8
+  warmup_epochs: 12
   cos_lr: true
-  close_mosaic: 15
+  close_mosaic: 20              # 接近结束时提前关 mosaic，利于 val 曲线收敛
   patience: 150
-  mosaic: 0.7
+  mosaic: 0.25                  # 仍抖可试 0 或 0.1
   mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
 
 eval:
   metrics_file: "AutoDL/outputs/eddy_enh/metrics_summary.json"

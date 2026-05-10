@@ -65,6 +65,21 @@ _ULTRA_EXTRA_KEYS = frozenset(
 )
 
 
+def _warn_autodl_output_dir_mismatch(out: Path) -> None:
+    """若 output_dir 误设为 ``.../AutoDL/outputs``，Ultralytics 会在其下建 ``train/``，与 ``.../eddy_enh`` 隔离目录混淆。"""
+    try:
+        s = out.resolve().as_posix().rstrip("/")
+    except OSError:
+        s = str(out).replace("\\", "/").rstrip("/")
+    if s.endswith("/AutoDL/outputs") or s == "AutoDL/outputs":
+        print(
+            "\n[eddy train][WARN] paths.output_dir 当前解析为「.../AutoDL/outputs」。"
+            "Ultralytics 会把本次 run 写在 **该目录下的 train/**（例如 AutoDL/outputs/train），"
+            "容易与其他实验混用且看起来「更不稳」。\n"
+            "若训练 eddy_enh，请在 config 中使用 **AutoDL/outputs/eddy_enh**（产物在 .../eddy_enh/train/）。\n"
+        )
+
+
 def _ultra_train_extras(tc: dict) -> dict:
     """从 yaml ``train`` 段提取转发给 Ultralytics 的额外参数。"""
     out: dict = {}
@@ -97,6 +112,7 @@ def main() -> None:
     cfg = load_yaml(args.config)
     out = resolve_path(cfg["paths"]["output_dir"])
     out.mkdir(parents=True, exist_ok=True)
+    _warn_autodl_output_dir_mismatch(out)
 
     if args.smoke:
         from ultralytics import YOLO
