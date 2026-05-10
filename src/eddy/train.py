@@ -2,8 +2,21 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 
 from src.utils.config import load_yaml, resolve_path
+
+
+def _maybe_line_buffer_stdio() -> None:
+    """云机 WebShell / 重定向时 stdout 常为全缓冲，导致长时间无输出；尽力改为按行缓冲。"""
+    if sys.stdout.isatty() and sys.stderr.isatty():
+        return
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(line_buffering=True)
+            except Exception:
+                pass
 
 # `model.train(...)` 已由本文件显式传入的键，勿从 yaml 重复转发
 _TRAIN_RESERVED = frozenset(
@@ -85,6 +98,7 @@ def _dataset_channels(dataset_yaml_path) -> int:
 
 
 def main() -> None:
+    _maybe_line_buffer_stdio()
     parser = argparse.ArgumentParser(description="涡旋 YOLOv8-seg 训练")
     parser.add_argument("--config", type=str, default="config/eddy.yaml")
     parser.add_argument(
@@ -109,6 +123,7 @@ def main() -> None:
             project=str(out),
             name="smoke",
             exist_ok=True,
+            verbose=True,
         )
         print("smoke 训练完成，权重目录:", out / "smoke")
         return
@@ -160,6 +175,8 @@ def main() -> None:
         pretrained=use_pretrained,
     )
     train_kw.update(extras)
+    train_kw["verbose"] = bool(tc.get("verbose", True))
+    print("[eddy train] 启动 Ultralytics；若干步后应出现 epoch/tqdm。若无输出可试: python -u -m src.eddy.train ...", flush=True)
     model.train(**train_kw)
 
     trained_best = out / run_name / "weights" / "best.pt"
