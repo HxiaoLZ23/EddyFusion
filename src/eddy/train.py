@@ -6,6 +6,14 @@ import shutil
 from src.utils.config import load_yaml, resolve_path
 
 
+def _dataset_channels(dataset_yaml_path) -> int:
+    p = resolve_path(dataset_yaml_path)
+    if not p.is_file():
+        return 3
+    data = load_yaml(p)
+    return int(data.get("channels", 3))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="涡旋 YOLOv8-seg 训练")
     parser.add_argument("--config", type=str, default="config/eddy.yaml")
@@ -46,9 +54,18 @@ def main() -> None:
 
     from ultralytics import YOLO
 
+    ch = _dataset_channels(dataset_yaml)
     backbone = str(cfg["model"]["backbone"])
     weights = backbone if backbone.endswith(".pt") else f"{backbone}.pt"
-    model = YOLO(weights)
+
+    if ch > 3:
+        arch = str(cfg["model"].get("architecture_yaml", "yolov8n-seg.yaml"))
+        print(f"[eddy train] 多通道数据 channels={ch}，自 yaml 构建模型（无 COCO 预训练首层）: {arch}")
+        model = YOLO(arch)
+        use_pretrained = False
+    else:
+        model = YOLO(weights)
+        use_pretrained = bool(cfg["train"].get("pretrained", True))
 
     tc = cfg["train"]
     ms = cfg["model"]["input_size"]
@@ -69,6 +86,7 @@ def main() -> None:
         exist_ok=True,
         workers=int(tc.get("workers", 4)),
         amp=bool(tc.get("amp", True)),
+        pretrained=use_pretrained,
     )
 
     trained_best = out / name / "weights" / "best.pt"

@@ -179,6 +179,7 @@ git push -u origin main
 | `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
 | `docs/系统架构说明.md` | 数据流与目录职责 |
 | `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
+| `docs/云端训练与目录归档.md` | **云机目录/Git 忽略边界**、水文/涡旋/异常训练与 **L0/L2 隔离脚本**产物路径、归档拷回清单 |
 | `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
 
 ### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）

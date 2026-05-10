@@ -1,0 +1,29 @@
+# 涡旋「增强1」主链：8 通道物理堆叠 npy（需导出时带 --stack-physics-npy，见 docs）
+# 与 config/eddy.yaml 并行；输出权重建议单独目录以便与 3ch 基线对照。
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-enh"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy_enh/dataset.yaml"
+  output_dir: "outputs/eddy_enh"
+
+model:
+  backbone: "yolov8n-seg"      # channels<=3 时仍作 COCO 预训练权重名
+  architecture_yaml: "yolov8n-seg.yaml"  # channels>3 时仅用此 YAML 构图（train.pretrained=false）
+  input_size: [640, 640]
+  channels: 8                   # 与 dataset.yaml 一致；导出伪标签时请写 channels: 8
+
+train:
+  device: "cuda"
+  epochs: 100
+  batch_size: 8
+  workers: 4
+  amp: true
+  pretrained: true               # 仅对 3ch 生效；多通道时在 train.py 中强制 False
+
+eval:
+  metrics_file: "outputs/eddy_enh/metrics_summary.json"

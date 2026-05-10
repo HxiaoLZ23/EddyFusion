@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from scipy import ndimage
 
+from src.eddy.stacked_physics import build_physics_stacked_hw8
 from src.preprocess.eddy_physics import (
     multi_percentile_vote_mask,
     okubo_weiss_and_vorticity,
@@ -139,16 +140,30 @@ def _contours_to_yolo_lines(
     return lines
 
 
-def _write_dataset_yaml(eddy_root: Path) -> None:
-    txt = """# 由 eddy_dataset --export-yolo 生成；path 相对于本文件所在目录
-path: data/processed/eddy
+def _write_dataset_yaml(
+    eddy_root: Path,
+    *,
+    rel_path_posix: str | None = None,
+    channels: int = 3,
+    include_test: bool = True,
+) -> None:
+    """rel_path_posix：写入 yaml 的 path 字段（相对仓库根）；默认与 eddy_root 在 processed 下的 posix 相对路径一致。"""
+    eddy_root.mkdir(parents=True, exist_ok=True)
+    if rel_path_posix is None:
+        try:
+            rel_path_posix = eddy_root.resolve().relative_to(project_root().resolve()).as_posix()
+        except ValueError:
+            rel_path_posix = eddy_root.as_posix()
+    ch_line = "" if int(channels) == 3 else f"channels: {int(channels)}\n"
+    test_line = "test: images/test\n" if include_test else ""
+    txt = f"""# 由 eddy_dataset --export-yolo 生成；path 相对于本文件所在目录
+path: {rel_path_posix}
 train: images/train
 val: images/val
-names:
+{test_line}{ch_line}names:
   0: eddy_cyclonic
   1: eddy_anticyclonic
 """
-    eddy_root.mkdir(parents=True, exist_ok=True)
     (eddy_root / "dataset.yaml").write_text(txt, encoding="utf-8")
 
 
@@ -166,6 +181,7 @@ def export_yolo_pseudo(
     approx_eps_frac: float,
     max_instances: int,
     rgb_percentiles: tuple[float, float],
+    stack_physics_npy: bool = False,
 ) -> int:
     import xarray as xr
 
@@ -181,7 +197,8 @@ def export_yolo_pseudo(
         (out_root / "images" / sp).mkdir(parents=True, exist_ok=True)
         (out_root / "labels" / sp).mkdir(parents=True, exist_ok=True)
 
-    _write_dataset_yaml(out_root)
+    mc_channels = 8 if stack_physics_npy else 3
+    _write_dataset_yaml(out_root, channels=mc_channels, include_test=True)
     n_written = 0
 
     for nc in sorted(eddy_dir.glob("*.nc")):
@@ -230,6 +247,17 @@ def export_yolo_pseudo(
                 img_p = out_root / "images" / split / f"{fname}.png"
                 lbl_p = out_root / "labels" / split / f"{fname}.txt"
                 cv2.imwrite(str(img_p), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+                if stack_physics_npy:
+                    hw8 = build_physics_stacked_hw8(
+                        a,
+                        u,
+                        v,
+                        zeta,
+                        ow,
+                        p_lo=float(rgb_percentiles[0]),
+                        p_hi=float(rgb_percentiles[1]),
+                    )
+                    np.save(str(img_p.with_suffix(".npy")), hw8)
                 with lbl_p.open("w", encoding="utf-8") as f:
                     for cls, poly in lines:
                         parts = [str(cls)] + [f"{x:.6f}" for x in poly]
@@ -274,6 +302,11 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--max-instances", type=int, default=40, help="每帧最多实例数")
     p.add_argument("--rgb-p-lo", type=float, default=2.0)
     p.add_argument("--rgb-p-hi", type=float, default=98.0)
+    p.add_argument(
+        "--stack-physics-npy",
+        action="store_true",
+        help="与 PNG 同 stem 写入 8 通道 float32 .npy（Ultralytics 优先加载），dataset.yaml 标注 channels: 8；供增强1主链训练",
+    )
     return p
 
 
@@ -293,6 +326,7 @@ def main_argv(argv: list[str] | None = None) -> int:
         approx_eps_frac=args.approx_eps_frac,
         max_instances=args.max_instances,
         rgb_percentiles=(args.rgb_p_lo, args.rgb_p_hi),
+        stack_physics_npy=bool(args.stack_physics_npy),
     )
     return 0 if n else 1
 
