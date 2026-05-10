@@ -2,14 +2,15 @@
 # 与 config/eddy.yaml 并行；输出权重建议单独目录以便与 3ch 基线对照。
 #
 # 产物布局（paths 均为相对仓库根）：
-#   paths.output_dir = AutoDL/outputs/eddy_enh
-#   Ultralytics：project=output_dir，子目录 = train.train.run_name（默认 train）
-#     → AutoDL/outputs/eddy_enh/train/weights/{best,last}.pt；曲线等在 train/
-#   src/eddy/train.py 结束时复制 best.pt、last.pt → AutoDL/outputs/eddy_enh/ 根（便于 --ckpt）
+#   paths.output_dir = AutoDL/outputs/eddy_enh；train.run_name = train（可调）
+#   云机绝对路径示例（以 Ultralytics 训练结束日志为准，如 Results saved to ...）：
+#     /root/autodl-tmp/EddyFusion/AutoDL/outputs/eddy_enh/train
+#   weights、results.csv、曲线等均在上述 run 目录下（含 weights/best.pt、last.pt）
+#   train.py 另将 best.pt / last.pt 复制到 AutoDL/outputs/eddy_enh/ 根，便于统一 --ckpt
 #   eval.metrics_file → AutoDL/outputs/eddy_enh/metrics_summary*.json
 #
-# 路径核对：若在仓库里看到 **AutoDL/outputs/train/**（少了 eddy_enh），多半是 output_dir 写成了
-#   AutoDL/outputs —— 会与其他模块/实验共用同一 Ultralytics「train」目录，曲线也更难对比。
+# 本地仓库若存在 AutoDL/** 常为云机产物的手动下载/同步副本，目录层级可与云机一致，也可能只拉了部分文件；
+# 溯源与写材料时请以「当次训练的日志路径」为准，勿用本地目录名反推线上是否配置错误。
 meta:
   project: "EddyFusion"
   module: "eddy"
@@ -19,7 +20,7 @@ meta:
 
 paths:
   dataset_yaml: "data/processed/eddy_enh/dataset.yaml"
-  # 相对仓库根；云机绝对路径形如 /root/autodl-tmp/EddyFusion/AutoDL/outputs/eddy_enh/train （见 README「路径契约」）
+  # 相对仓库根；云机展开示例见文件头注释
   output_dir: "AutoDL/outputs/eddy_enh"
 
 model:

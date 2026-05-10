@@ -46,7 +46,10 @@ python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_
 - 典型克隆/工作路径：`~/autodl-tmp/EddyFusion`（root 用户下为 `/root/autodl-tmp/EddyFusion`）
 - 下文与脚本中的「仓库根」在云服务器上即指上述路径。
 
-**路径契约（必读）**：云端与本地**整机绝对路径不一致**是正常的。示例：同一轮涡旋增强训练在云机可能是 `/root/autodl-tmp/EddyFusion/outputs/eddy_enh/train` 或 `.../AutoDL/outputs/eddy_enh/train`（取决于 `config` 里的 `paths.output_dir`），在本地则可能是 `F:\创赛\outputs\...`。仓库内 **`config/*.yaml`、`data/**/dataset.yaml`、文档与代码**均应使用 **相对仓库根** 的路径（或由 `src.utils.config.resolve_path` 解析）；**不要**把某一台 AutoDL 的 `/root/autodl-tmp/...` 写进提交的源码。若在材料中举例绝对路径，请标注「云机示意」并保持与当场 `pwd` / `output_dir` 一致。
+**路径契约**：`config`、`dataset.yaml` 与脚本应使用 **相对仓库根** 的路径（或由 `resolve_path()` 解析），**勿**把某台机器上的 **`/root/...` / 盘符** 写进提交代码的默认值。
+
+**产物放在哪一栏**：云上真实保存位置以 **`Results saved to ...`**（Ultralytics 训练结束时会打）为准。例如 **`config/eddy_enh.yaml`** 下若 `paths.output_dir: AutoDL/outputs/eddy_enh`、`train.run_name: train`，在云机常为 **`/root/autodl-tmp/EddyFusion/AutoDL/outputs/eddy_enh/train`**。本地仓库里的 **`AutoDL/`** 若存在，多半是**手动拷贝/下载**的训练输出，用作离线查阅即可，**不要求**与本机推断的「应该多一层 / 少一层」严格对应。
+
 - **命题方数据位置二选一即可**（`config/data.yaml` 默认 `paths.raw_root: "服创数据集"`，相对仓库根解析）：
   - **放在仓库内**：`~/autodl-tmp/EddyFusion/服创数据集/`（与 `config/` 同级），则**无需**运行 `setup_fuchuang_to_data.sh`，预处理会直接读该目录。
   - **放在仓库外**（如 `~/autodl-tmp/服创数据集`，避免占满系统盘）：用 `scripts/setup_fuchuang_to_data.sh` 的 `FU_MODE=link` 在仓库根创建软链 `服创数据集` → 实际数据目录。
