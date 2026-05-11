@@ -180,6 +180,7 @@ git push -u origin main
 | `docs/README.md` | **`docs/` 目录总索引**（本表的超集与跳转） |
 | `docs/命题方数据集说明.md` | 命题方海区、变量、划分、指标摘要 |
 | `docs/涡旋_OW至YOLO伪标签开发参考.md` | **涡旋伪标签**：OW 多阈值投票、YOLO-seg 导出与文献路线（配合 `eddy_dataset --export-yolo`） |
+| `docs/涡旋模块工作汇总.md` | **涡旋本轮**：基线 vs 8ch、命令与指标表、消融是否必做 |
 | `docs/实施过程与局限性.md` | 各模块 Level、水文局限（缺测/内存/显存/划分） |
 | `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
 | `docs/系统架构说明.md` | 数据流与目录职责 |
