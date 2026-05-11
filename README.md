@@ -186,6 +186,7 @@ git push -u origin main
 | `docs/系统架构说明.md` | 数据流与目录职责 |
 | `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
 | `docs/云端训练与目录归档.md` | **§0 云/本路径契约**、云机目录与 Git 边界、水文/涡旋/异常与 **L0/L2**、归档拷回清单 |
+| `docs/水文_云端归档与专项B启动.md` | 专项 A **`AutoDL/outputs/cloud`** 归档约定；专项 B **首轮 eos005** 训练与 `compare` 命令 |
 | `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
 
 ### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）

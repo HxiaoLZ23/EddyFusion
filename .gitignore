@@ -38,6 +38,10 @@ outputs/hydro/*
 !outputs/hydro/.gitkeep
 outputs/anomaly/*
 !outputs/anomaly/.gitkeep
+# 云端水文 audit/compare 归档说明（JSON 仍忽略）
+!outputs/cloud/
+outputs/cloud/*
+!outputs/cloud/README.md
 *.pt
 *.pth
 *.ckpt

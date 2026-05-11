@@ -1,0 +1,97 @@
+# 专项 B · 首轮低成本对照：仅下调 EOS 约束权重（§3.1）
+# 相对 config/hydro_hycom_l0.yaml：loss.eos_constraint.weight 0.1→0.05，独立 output_dir
+meta:
+  project: "EddyFusion"
+  module: "hydro"
+  version: "1.0-exp-eos005"
+  level: 0
+  seed: 42
+
+paths:
+  train_data: "data/processed/hydro/X_train.npz"
+  train_label: "data/processed/hydro/y_train.npz"
+  val_data: "data/processed/hydro/X_val.npz"
+  val_label: "data/processed/hydro/y_val.npz"
+  test_data: "data/processed/hydro/X_test.npz"
+  test_label: "data/processed/hydro/y_test.npz"
+  output_dir: "outputs/hydro_l0_eos005"
+
+data:
+  input_features: ["temp", "sal", "u", "v"]
+  target_features: ["temp", "sal", "u", "v"]
+  input_days: 7
+  input_steps: 168
+  output_hours: [72]
+  output_steps: 72
+  grid_shape: [138, 125]
+  normalize:
+    temp: "zscore"
+    sal: "zscore"
+    u: "zscore"
+    v: "zscore"
+  num_workers: 0
+  pin_memory: false
+
+model:
+  name: "ConvLSTM_Hydro"
+  hidden_dim: 128
+  num_layers: 3
+  kernel_size: 3
+  dropout: 0.1
+  use_element_attention: true
+  element_attention_hidden: 64
+  encoder_checkpoint: true
+
+mot:
+  enabled: true
+  kernel_short: 3
+  kernel_long: 7
+  mid_channels: 32
+
+attn_res:
+  enabled: true
+  type: "block"
+  num_blocks: 8
+  reduction: 4
+  pre_norm: true
+
+loss:
+  base: "mse"
+  mae_weight: 0.1
+  eos_constraint:
+    enabled: true
+    weight: 0.05
+    mode: "soft"
+
+train:
+  device: "cuda"
+  epochs: 60
+  batch_size: 1
+  gradient_accumulation_steps: 2
+  eval_batch_size: 1
+  optimizer: "adamw"
+  lr: 0.0001
+  weight_decay: 0.01
+  scheduler: "cosine"
+  warmup_epochs: 3
+  grad_clip_norm: 1.0
+  amp: true
+  early_stop_patience: 10
+  max_train_batches_per_epoch: null
+  max_val_batches: null
+  val_every_epochs: 1
+  log_interval: 50
+  save_best_by: "val_nrmse_avg"
+  checkpoint_every_epoch: 1
+  plot_every_epochs: 5
+
+eval:
+  metrics: ["rmse", "nrmse", "mae"]
+  report_horizons_hours: [72]
+  save_preds: true
+  save_metrics_json: true
+  save_plots: true
+  plots_dir: "outputs/hydro_l0_eos005/figures"
+  plot_sample_index: 0
+  metrics_file: "outputs/hydro_l0_eos005/metrics_summary.json"
+  tag_fields: ["level", "mot.enabled", "attn_res.enabled", "attn_res.type", "loss.eos_constraint.enabled"]
