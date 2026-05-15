@@ -64,6 +64,22 @@ def _coarse_highfreq(adt: np.ndarray) -> np.ndarray:
     return a - up
 
 
+def relative_vorticity_and_okubo_weiss_from_uv(
+    u: np.ndarray,
+    v: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """由同格点 u,v 用中心差分近似相对涡度 ζ=∂v/∂x−∂u/∂y 与 Okubo–Weiss 标量 W=Sn²+Ss²−ζ²。"""
+    u = np.asarray(u, dtype=np.float64)
+    v = np.asarray(v, dtype=np.float64)
+    du_dy, du_dx = np.gradient(u)
+    dv_dy, dv_dx = np.gradient(v)
+    zeta = dv_dx - du_dy
+    sn = du_dx - dv_dy
+    ss = dv_dx + du_dy
+    ow = sn * sn + ss * ss - zeta * zeta
+    return zeta, ow
+
+
 def build_physics_stacked_hw8(
     adt: np.ndarray,
     u: np.ndarray,

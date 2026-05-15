@@ -1,4 +1,4 @@
-"""水文扩展评估指标：逐通道 MAE/RMSE、相对持久性 Skill、Pearson、可选反标准化误差。"""
+"""水文扩展评估指标：逐通道 MAE/RMSE/NRMSE、相对持久性 Skill、Pearson、可选反标准化误差。"""
 
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ def evaluate_extended_on_loader(
     sum_p2 = torch.zeros(c_out, dtype=torch.float64, device="cpu")
     sum_y2 = torch.zeros(c_out, dtype=torch.float64, device="cpu")
     sum_py = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+    sum_abs_y = torch.zeros(c_out, dtype=torch.float64, device="cpu")
 
     eps = 1e-12
     n_batch = 0
@@ -74,6 +75,7 @@ def evaluate_extended_on_loader(
         sum_p2 += (pn**2).reshape(-1, c_out).sum(dim=0).cpu()
         sum_y2 += (yn**2).reshape(-1, c_out).sum(dim=0).cpu()
         sum_py += (pn * yn).reshape(-1, c_out).sum(dim=0).cpu()
+        sum_abs_y += yn.abs().reshape(-1, c_out).sum(dim=0).cpu()
         n_total += float(pn.reshape(-1, c_out).shape[0])
 
         n_batch += 1
@@ -84,6 +86,11 @@ def evaluate_extended_on_loader(
     mse_m_np = (sse_m / nt).numpy()
     mse_p_np = (sse_p / nt).numpy()
     rmse = {feature_names[i]: float(np.sqrt(mse_m_np[i])) for i in range(c_out)}
+    mean_abs_y = (sum_abs_y / nt).numpy()
+    nrmse = {
+        feature_names[i]: float(np.sqrt(mse_m_np[i]) / max(float(mean_abs_y[i]), eps))
+        for i in range(c_out)
+    }
     mae = {feature_names[i]: float((sae_m[i] / nt).item()) for i in range(c_out)}
     rmse_pers = {feature_names[i]: float(np.sqrt(mse_p_np[i])) for i in range(c_out)}
 
@@ -122,6 +129,8 @@ def evaluate_extended_on_loader(
         "skill_vs_persistence": skill,
         "pearson_per_feature": pearson,
         "mse_model_per_feature": {feature_names[i]: float(mse_m_np[i]) for i in range(c_out)},
+        "nrmse_per_feature": nrmse,
+        "mean_abs_y_per_feature": {feature_names[i]: float(mean_abs_y[i]) for i in range(c_out)},
         "n_summed_per_channel_dim": nt,
     }
 
@@ -136,6 +145,7 @@ def evaluate_extended_on_loader(
 
     out["rmse_avg"] = float(np.mean([rmse[f] for f in feature_names]))
     out["mae_avg"] = float(np.mean([mae[f] for f in feature_names]))
+    out["nrmse_avg"] = float(np.mean([nrmse[f] for f in feature_names]))
     skills_valid = [s for s in skill.values() if s is not None]
     out["skill_avg"] = float(np.mean(skills_valid)) if skills_valid else None
 

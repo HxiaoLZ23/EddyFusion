@@ -13,11 +13,19 @@ tqdm>=4.65
 ultralytics>=8.0.0
 opencv-python-headless>=4.5
 
-# 可视化 / 演示
+# 可视化 / 演示（Streamlit 内嵌播放 MP4 建议系统安装 ffmpeg 并加入 PATH，输出 H.264/yuv420p）
 matplotlib>=3.7
 plotly>=5.18
 gradio>=4.0
 streamlit
+
+# 风浪报告 / 百炼 DashScope API 烟测（scripts/test_dashscope_model.py）
+dashscope>=1.19.0
+
+# 第二套前端：FastAPI（Vite 联调，与 Streamlit 可共用同一 venv）
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
 
 # 可选：大数组并行
 # dask>=2023.1.0

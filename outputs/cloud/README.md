@@ -10,6 +10,6 @@
 | `hydro_compare_val_summary.json` | `compare --split val ... --out-summary-json ...` |
 | `hydro_compare_test_summary.json` | `compare --split test ...`（与 val **分机**） |
 
-专项 B 多轮实验可加后缀，例如 `hydro_compare_val_summary_eos005.json`。
+专项 B 多轮实验可加后缀，例如 `hydro_compare_val_summary_eos005.json`、`hydro_compare_val_summary_eos003.json`。
 
 详见 **`docs/水文_云端归档与专项B启动.md`**。

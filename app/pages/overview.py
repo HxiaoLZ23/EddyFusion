@@ -20,13 +20,18 @@ def _numeric_metrics(raw: dict[str, Any]) -> dict[str, float]:
 
 
 def render(*, metrics_service: MetricsService) -> None:
-    st.title("海洋环境智能分析演示")
+    st.title("EddyFusion")
+    st.caption("面向涡旋—水文—风浪的海洋环境智能分析与预警平台")
     st.write("本演示系统用于展示三模块能力、视频输入流程与阶段性指标。")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("涡旋识别", "可用", "支持真实推理与关键帧展示")
     c2.metric("水文预测", "可用", "已支持 val/test 指标读取")
-    c3.metric("风浪异常", "可用(演示)", "支持视频上传与 mock 结果")
+    c3.metric(
+        "风浪异常",
+        "可用(演示)",
+        "视频→风浪预警联动；智能解读需 DASHSCOPE；实时系统见阈值+手动生成",
+    )
     c4.metric("台风知识库", "可用", "支持事件检索与联动展示")
 
     st.subheader("最近指标摘要")
@@ -50,5 +55,8 @@ def render(*, metrics_service: MetricsService) -> None:
                 st.warning("待生成")
                 st.caption(data.message)
 
-    st.info("建议演示路径：上传视频 -> 查看结果(自动台风联动) -> 台风知识库页展示候选事件与案例。")
+    st.info(
+        "建议演示路径：「涡旋识别」页上传视频并推理 → 「风浪预警」→「台风知识库」；"
+        "NC 摘要见「离线系统」，视频流见「实时系统」。"
+    )
 

@@ -8,8 +8,11 @@
   python scripts/hydro_cloud_assessment.py audit --hydro-config config/hydro_hycom_l0.yaml --data-config config/data.yaml
   python scripts/hydro_cloud_assessment.py compare --split val \\
     --baseline-config config/hydro_hycom_l2.yaml --baseline-ckpt outputs/hydro_l2/best.pt \\
-    --experiment-config config/hydro_hycom_l0.yaml --experiment-ckpt outputs/hydro_l0/best.pt \\
-    --out-table-md submission/tables/hydro_experiment_vs_baseline_val.md
+    --experiment-config config/experiments/hydro_hycom_l0_eos003.yaml \\
+    --experiment-ckpt outputs/hydro_l0_eos003/best.pt \\
+    --out-table-md submission/tables/hydro_l0_eos003_vs_l2_val.md \\
+    --out-summary-json AutoDL/outputs/cloud/hydro_compare_val_summary_eos003.json
+  # compare 输出含 summary（含 NRMSE_avg）与 per_feature（含逐通道 NRMSE），与 eval.py NRMSE 口径一致。
 """
 
 from __future__ import annotations
@@ -239,6 +242,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
             "experiment_mae": float(m_exp["mae_per_feature"][name]),
             "baseline_rmse_norm": float(m_base["rmse_per_feature"][name]),
             "experiment_rmse_norm": float(m_exp["rmse_per_feature"][name]),
+            "baseline_nrmse": float(m_base["nrmse_per_feature"][name]),
+            "experiment_nrmse": float(m_exp["nrmse_per_feature"][name]),
             "baseline_skill": sk_b if sk_b is not None else "",
             "experiment_skill": sk_e if sk_e is not None else "",
             "baseline_pearson": pr_b if pr_b is not None else "",
@@ -259,6 +264,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     exp_skill_avg = m_exp.get("skill_avg")
 
     verdict_mae = float(m_exp["mae_avg"]) < float(m_base["mae_avg"])
+    verdict_nrmse = float(m_exp["nrmse_avg"]) < float(m_base["nrmse_avg"])
     verdict_skill = False
     if base_skill_avg is not None and exp_skill_avg is not None:
         verdict_skill = float(exp_skill_avg) > float(base_skill_avg)
@@ -271,14 +277,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
         "experiment_mae_avg": float(m_exp["mae_avg"]),
         "baseline_rmse_avg_norm": float(m_base["rmse_avg"]),
         "experiment_rmse_avg_norm": float(m_exp["rmse_avg"]),
+        "baseline_nrmse_avg": float(m_base["nrmse_avg"]),
+        "experiment_nrmse_avg": float(m_exp["nrmse_avg"]),
         "baseline_skill_avg": base_skill_avg,
         "experiment_skill_avg": exp_skill_avg,
         "baseline_pearson_avg": m_base.get("pearson_avg"),
         "experiment_pearson_avg": m_exp.get("pearson_avg"),
         "conclusion_mae_avg_experiment_lower": verdict_mae,
+        "conclusion_nrmse_avg_experiment_lower": verdict_nrmse,
         "conclusion_skill_avg_experiment_higher": verdict_skill,
         "material_line_l0_stable_improve": verdict_mae and verdict_skill if base_skill_avg is not None else None,
         "definitions": {
+            "nrmse": "与 src/hydro/eval.py 一致：RMSE / mean(|y|)，在 z-score 目标上按 B×T×H×W 聚合",
             "skill_vs_persistence": "1 - MSE_model / MSE_naive ，naive = 复制输入末时刻到整个预报窗",
             "rmse_physical_scale": "若提供 hydro_zscore.npz，则 RMSE(z) * std[channel]（与原数据同量纲缩放）",
         },
@@ -301,6 +311,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
             "| 项 | baseline | experiment | 结论（实验优于基线？） |",
             "| --- | --- | --- | --- |",
             f"| MAE_avg (norm空间) | {m_base['mae_avg']:.6g} | {m_exp['mae_avg']:.6g} | {'是' if verdict_mae else '否'} |",
+            f"| NRMSE_avg（与 eval 口径一致） | {m_base['nrmse_avg']:.6g} | {m_exp['nrmse_avg']:.6g} | {'是' if verdict_nrmse else '否'} |",
         ]
         if base_skill_avg is not None:
             yes_skill = '是' if verdict_skill else '否'
@@ -308,12 +319,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
                 f"| Skill_avg (vs persistence) | {float(base_skill_avg):.6g} | "
                 f"{float(exp_skill_avg or 0):.6g} | {yes_skill} |"
             )
-        lines_md += ["", "## 通道明细", "", "| channel | MAE_B | MAE_E | RMSE_B | RMSE_E | Skill_B | Skill_E | r_B | r_E |"]
-        lines_md.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+        lines_md += [
+            "",
+            "## 通道明细",
+            "",
+            "| channel | MAE_B | MAE_E | RMSE_B | RMSE_E | NRMSE_B | NRMSE_E | Skill_B | Skill_E | r_B | r_E |",
+        ]
+        lines_md.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
         for r in rows:
             lines_md.append(
                 f"| {r['feature']} | {r['baseline_mae']:.6g} | {r['experiment_mae']:.6g} | "
                 f"{r['baseline_rmse_norm']:.6g} | {r['experiment_rmse_norm']:.6g} | "
+                f"{r['baseline_nrmse']:.6g} | {r['experiment_nrmse']:.6g} | "
                 f"{r['baseline_skill']} | {r['experiment_skill']} | {r['baseline_pearson']} | {r['experiment_pearson']} |"
             )
         md_path.write_text("\n".join(lines_md), encoding="utf-8")

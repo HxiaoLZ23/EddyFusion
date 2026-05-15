@@ -1,6 +1,6 @@
 # EddyFusion
 
-频域先验与多时间尺度驱动的海洋智能分析平台（赛题 A09）。本仓库为可运行代码与配置；**全局开发规范**见本地或团队共享的 `相关文件/AI_DEV_REQUIREMENTS.md`
+**EddyFusion：面向涡旋—水文—风浪的海洋环境智能分析与预警平台**（赛题 A09）。本仓库为可运行代码与配置；**全局开发规范**见本地或团队共享的 `相关文件/AI_DEV_REQUIREMENTS.md`
 
 ## 环境
 
@@ -187,6 +187,8 @@ git push -u origin main
 | `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
 | `docs/云端训练与目录归档.md` | **§0 云/本路径契约**、云机目录与 Git 边界、水文/涡旋/异常与 **L0/L2**、归档拷回清单 |
 | `docs/水文_云端归档与专项B启动.md` | 专项 A **`AutoDL/outputs/cloud`** 归档约定；专项 B **首轮 eos005** 训练与 `compare` 命令 |
+| `docs/策略_第二套前端与水文预测热力图.md` | **大屏/第二套前端**：Vite + React/Vue + MapLibre，**FastAPI 供数**；**仅水文预测热力图**；不含本期异常告警地图 |
+| `docs/开发文档_新前端离线系统与实时系统.md` | **新前端**：离线/实时目录与 API 草案、本地联调、与 Streamlit 对齐说明 |
 | `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
 
 ### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）

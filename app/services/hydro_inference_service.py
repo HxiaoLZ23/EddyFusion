@@ -17,6 +17,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.hydro.dataset import HydroNpzDataset
 from src.hydro.model import build_model
+from src.preprocess.hydro_nc_infer_build import (
+    build_hydro_xy_from_netcdf_paths,
+    peek_total_time_steps,
+    required_window_length,
+)
 from src.utils.config import load_yaml, pick_device, resolve_path
 
 
@@ -94,6 +99,19 @@ class HydroInferenceService:
             return pred, notes
         # 若时间维与 gt 一致但通道多/少，后续按通道截断或补零
         if pred.shape[0] == gt.shape[0]:
+            return pred, notes
+        # 配置 output_steps 与标签 NPZ 时间长度不一致时（如 72 步预测 vs 4 步标注）：沿时间均匀重采样
+        if (
+            pred.ndim == 4
+            and gt.ndim == 4
+            and pred.shape[1:] == gt.shape[1:]
+            and pred.shape[0] != gt.shape[0]
+            and gt.shape[0] >= 1
+        ):
+            t_out, t_gt = int(pred.shape[0]), int(gt.shape[0])
+            idx = torch.linspace(0, t_out - 1, t_gt).long().clamp(0, t_out - 1)
+            pred = pred[idx].contiguous()
+            notes.append(f"时间维从模型输出 T={t_out} 重采样对齐到标签 T={t_gt}")
             return pred, notes
         raise ValueError(
             f"模型输出形状与标签不兼容: pred={tuple(pred.shape)}, gt={tuple(gt.shape)}，无法自动对齐。"
@@ -222,6 +240,7 @@ class HydroInferenceService:
         y_path_override: str | None = None,
         x_channel_indices: list[int] | None = None,
         y_channel_indices: list[int] | None = None,
+        map_time_index: int | None = None,
     ) -> dict[str, Any]:
         t0 = time.time()
         cfg = load_yaml(config_path)
@@ -291,7 +310,11 @@ class HydroInferenceService:
         rmse_map = {names[i]: _safe_float(rmse[i]) for i in range(len(names))}
         nrmse_map = {names[i]: _safe_float(nrmse[i]) for i in range(len(names))}
 
-        t_last = int(gt.shape[0] - 1)
+        t_max = int(gt.shape[0] - 1)
+        if map_time_index is None:
+            t_map = t_max
+        else:
+            t_map = max(0, min(int(map_time_index), t_max))
         curve_data: dict[str, list[dict[str, float]]] = {}
         map_data: dict[str, dict[str, np.ndarray]] = {}
         for i, name in enumerate(names):
@@ -307,8 +330,8 @@ class HydroInferenceService:
                     }
                 )
             curve_data[name] = feature_rows
-            gt_map = gt[t_last, i, :, :].numpy()
-            pd_map = pred[t_last, i, :, :].numpy()
+            gt_map = gt[t_map, i, :, :].numpy()
+            pd_map = pred[t_map, i, :, :].numpy()
             err_map = np.abs(pd_map - gt_map)
             map_data[name] = {"gt": gt_map, "pred": pd_map, "err": err_map}
 
@@ -325,7 +348,7 @@ class HydroInferenceService:
             "curve_data": curve_data,
             "map_data": map_data,
             "feature_names": names,
-            "t_last": t_last + 1,
+            "t_last": t_map + 1,
             "elapsed_sec": _safe_float(time.time() - t0),
             "warnings": map_notes + channel_notes + pred_layout_notes,
         }
@@ -355,3 +378,41 @@ class HydroInferenceService:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".npz", dir=root) as tmp:
             tmp.write(upload_file.getvalue())
             return Path(tmp.name)
+
+    def hydro_required_time_steps(self, config_path: str) -> int:
+        cfg = load_yaml(config_path)
+        return required_window_length(cfg)
+
+    def peek_hydro_buffer_time_steps(self, nc_paths: list[Path], *, config_path: str) -> int:
+        cfg = load_yaml(config_path)
+        feats = list(cfg["data"]["input_features"])
+        return peek_total_time_steps(nc_paths, feats)
+
+    def materialize_netcdf_to_xy_npz(
+        self,
+        nc_paths: list[Path],
+        *,
+        config_path: str,
+        window_stride: int = 1,
+        max_windows: int | None = 256,
+    ) -> tuple[Path, Path, dict[str, Any]]:
+        """
+        将多个 NetCDF 拼接并滑窗，写入 `app/data/hydro_nc_cache/` 下临时 X/y.npz。
+        """
+        cfg = load_yaml(config_path)
+        x, y, meta = build_hydro_xy_from_netcdf_paths(
+            nc_paths,
+            cfg,
+            window_stride=int(window_stride),
+            max_windows=max_windows,
+        )
+        cache = _project_root() / "app" / "data" / "hydro_nc_cache"
+        cache.mkdir(parents=True, exist_ok=True)
+        tag = f"{int(time.time() * 1000)}"
+        xp = cache / f"X_nc_{tag}.npz"
+        yp = cache / f"y_nc_{tag}.npz"
+        np.savez_compressed(xp, X=x)
+        np.savez_compressed(yp, y=y)
+        meta["x_path"] = str(xp)
+        meta["y_path"] = str(yp)
+        return xp, yp, meta

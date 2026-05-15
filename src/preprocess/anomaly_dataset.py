@@ -159,6 +159,11 @@ def _extract_wind_wave_series(nc_path: Path) -> tuple[np.ndarray, dict[str, int]
                 pass
 
 
+def extract_wind_wave_series_from_netcdf(nc_path: str | Path) -> tuple[np.ndarray, dict[str, int]]:
+    """从 NetCDF 提取 (T,2) 时序：[风速模长, 浪高]；变量约定与 `_extract_wind_wave_series` 一致。"""
+    return _extract_wind_wave_series(Path(nc_path))
+
+
 def _build_windows(ts: np.ndarray, window_steps: int, horizon_steps: int, stride: int) -> tuple[np.ndarray, np.ndarray]:
     t = int(ts.shape[0])
     need = window_steps + horizon_steps

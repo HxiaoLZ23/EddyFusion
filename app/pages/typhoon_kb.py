@@ -7,6 +7,7 @@ from typing import Any
 
 import streamlit as st
 
+from src.anomaly.eddy_typhoon_bridge import typhoon_query_bbox_from_configs
 from src.anomaly.typhoon_kb import QueryBox, query_typhoon_events
 from src.utils.config import load_yaml, resolve_path
 
@@ -39,21 +40,20 @@ def _friendly_level(level: str) -> str:
 
 
 def _default_query_params() -> dict[str, Any]:
-    data_cfg = load_yaml("config/data.yaml")
     demo_cfg = load_yaml("app/config/demo.yaml")
-    spatial = data_cfg.get("spatial", {}) if isinstance(data_cfg, dict) else {}
     ty_cfg = demo_cfg.get("typhoon_link", {}) if isinstance(demo_cfg, dict) else {}
 
     end_dt = datetime.now()
     win_h = int(_safe_float(ty_cfg.get("default_window_hours"), 240))
     start_dt = end_dt - timedelta(hours=max(1, win_h))
+    lon_min, lon_max, lat_min, lat_max = typhoon_query_bbox_from_configs()
     return {
         "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "lon_min": _safe_float(spatial.get("lon_min"), 117.0),
-        "lon_max": _safe_float(spatial.get("lon_max"), 127.0),
-        "lat_min": _safe_float(spatial.get("lat_min"), 31.0),
-        "lat_max": _safe_float(spatial.get("lat_max"), 41.0),
+        "lon_min": lon_min,
+        "lon_max": lon_max,
+        "lat_min": lat_min,
+        "lat_max": lat_max,
         "top_k": int(_safe_float(ty_cfg.get("default_top_k"), 5)),
         "events_json_path": str(ty_cfg.get("events_json_path", "data/processed/anomaly/typhoon_kb/events.json")),
         "demo_cases_path": str(ty_cfg.get("demo_cases_path", "data/processed/anomaly/typhoon_kb/demo_cases.json")),
@@ -279,7 +279,14 @@ def _render_demo_cases(defaults: dict[str, Any]) -> None:
 
 def render() -> None:
     st.title("台风知识库")
-    st.caption("面向演示与日常使用：快速检索、历史浏览、案例复现三合一。")
+    st.caption("面向演示与日常使用：快速检索、历史浏览、案例复现三合一；并作为系统口径与命题任务 (5) 的定调说明入口。")
+    with st.expander("系统定调 · 与命题任务 (5) 对齐", expanded=False):
+        st.markdown(
+            "- **风-浪异常**：以结构化 `run_detect` 输出（含 3σ 等级、残差与可选 `assessment_note`）为报告基础；"
+            "台风候选来自本地 `events.json` 时空检索 + DTW，非大模型臆测。\n"
+            "- **历史台风**：检索范围由查询时间窗与海区决定，索引可来自 IBTrACS 等构建脚本；扩大窗区见 `app/config/demo.yaml` 的 `typhoon_link`。\n"
+            "- **演示与实测**：上传视频路径若无水文残差，可能使用 peak_score 代理；配套 NPZ 含 `demo_wind_*` 时走演示风浪序列。"
+        )
     defaults = _default_query_params()
     _render_kb_status(defaults["events_json_path"])
     t1, t2, t3 = st.tabs(["快速检索", "历史事件浏览", "联动案例"])

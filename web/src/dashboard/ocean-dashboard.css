@@ -1,0 +1,386 @@
+/* 对齐《规划_实时系统与离线系统详细设计》§2.1 栅格：左涡旋 | 右上水文 | 右下风浪 */
+
+.ocean-dashboard {
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.ocean-dashboard__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ocean-dashboard__caption {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ocean-dashboard__compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.ocean-dashboard__compact-grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ocean-dashboard__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.ocean-dashboard__main {
+  display: grid;
+  grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
+  grid-template-rows: minmax(480px, calc(100vh - 220px));
+  gap: 12px;
+  min-height: 0;
+}
+
+.ocean-dashboard__eddy {
+  min-height: 0;
+}
+
+@media (max-width: 960px) {
+  .ocean-dashboard__main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+}
+
+.ocean-dashboard__panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ocean-dashboard__panel-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 8px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__right {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.ocean-dashboard__panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ocean-dashboard__eddy-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__eddy-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+}
+
+.ocean-dashboard__eddy-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.ocean-dashboard__eddy-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ocean-dashboard__eddy-hint {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.ocean-dashboard__eddy-err {
+  font-size: 12px;
+  color: #b91c1c;
+  max-width: 100%;
+}
+
+.ocean-dashboard__eddy-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+}
+
+.ocean-dashboard__eddy-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ocean-dashboard__video-slot {
+  flex: 1;
+  min-height: 140px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.ocean-dashboard__video-slot--live {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 8px;
+  gap: 6px;
+}
+
+/* 上路保留原生控件高度，避免控件压住下路；下路占剩余高度（覆盖 .video-slot 的 flex:1 均分） */
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}
+
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--bottom {
+  flex: 1 1 0;
+  min-height: 120px;
+}
+
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top .ocean-dashboard__eddy-video,
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--bottom .ocean-dashboard__eddy-video {
+  max-height: min(28vh, 240px);
+}
+
+.ocean-dashboard__video-slot-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__video-slot-placeholder {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.ocean-dashboard__eddy-video {
+  width: 100%;
+  max-height: min(38vh, 360px);
+  object-fit: contain;
+  background: #0f172a;
+  border-radius: 6px;
+  vertical-align: top;
+}
+
+.ocean-dashboard__eddy-video--synced {
+  pointer-events: none;
+}
+
+.ocean-dashboard__timestamp-bar--eddy {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #0c4a6e;
+  background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+  border: 1px solid #38bdf8;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.ocean-dashboard__timestamp-bar {
+  font-size: 12px;
+  color: #475569;
+  padding: 6px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__pill {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.ocean-dashboard__pill--unknown {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.ocean-dashboard__pill--low {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ocean-dashboard__pill--mid {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.ocean-dashboard__pill--high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ocean-dashboard__windwave-lines {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ocean-dashboard__windwave-level-row {
+  flex-shrink: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 6px 0 10px;
+  margin: 0 0 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ocean-dashboard__windwave-level-row .ocean-dashboard__pill {
+  margin-bottom: 0;
+}
+
+.ocean-dashboard__windwave-level-muted {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ocean-dashboard__panel-body--windwave {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ocean-dashboard__windwave-body-lead {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.ocean-dashboard__windwave-err {
+  font-size: 12px;
+  color: #b45309;
+  margin: 0 0 8px;
+}
+
+.ocean-dashboard__windwave-note {
+  font-size: 11px;
+  color: #92400e;
+  margin: 0 0 8px;
+}
+
+.ocean-dashboard__panel--windwave {
+  min-height: 0;
+}
+
+.hydro-curves__svg {
+  display: block;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.ocean-dashboard__status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ocean-dashboard__panel--hydro {
+  min-height: 0;
+}
+
+.ocean-dashboard__hydro-split {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ocean-dashboard__hydro-col--curve {
+  flex: 1 1 58%;
+  min-width: 280px;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  min-height: 240px;
+}
+
+.ocean-dashboard__hydro-col--map {
+  flex: 0 1 34%;
+  max-width: 320px;
+  min-width: 180px;
+  min-height: 240px;
+  position: relative;
+}
+
+@media (max-width: 720px) {
+  .ocean-dashboard__hydro-split {
+    flex-direction: column;
+  }
+
+  .ocean-dashboard__hydro-col--curve {
+    max-width: none;
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "paired_video": "submission\\figures\\eddy_demo\\eddy_demo.mp4",
+  "npz": "submission\\figures\\eddy_demo\\eddy_demo_physics.npz",
+  "physics_source": "first_frame_of:submission/figures/eddy_demo/eddy_demo.mp4",
+  "array_shapes": {
+    "sla": [
+      160,
+      320
+    ],
+    "vorticity": [
+      160,
+      320
+    ],
+    "dtdy": [
+      160,
+      320
+    ]
+  },
+  "demo_flow_steps": [
+    "1) 上传页选择 eddy_demo.mp4",
+    "2) 涡旋识别页：运行视频推理；可选上传本 NPZ 点击「对 NPZ 融合场运行单帧检测」",
+    "3) 结果页查看联动（当前风浪等级仍以视频链 peak_score 代理；NPZ 内 demo_wind_* / demo_wave_* 供后续接入）"
+  ],
+  "realtime_note": "实时输入页当前仅视频流；NPZ+流合一需在实时页扩展，不在本脚本范围。"
+}

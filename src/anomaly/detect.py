@@ -86,6 +86,40 @@ def compute_anomaly_assessment(anomaly_result: dict[str, Any]) -> dict[str, Any]
             has_signal = True
 
     if not has_signal:
+        # 视频/涡旋演示路径：无水文残差时，用 peak_score 与时序曲线构造代理量（非实况观测量）
+        peak_raw = anomaly_result.get("peak_score")
+        curve = anomaly_result.get("current_curve")
+        curve_list: list[float] = []
+        if isinstance(curve, list):
+            curve_list = [float(x) for x in curve if isinstance(x, (int, float))]
+        peak_v: float | None = float(peak_raw) if isinstance(peak_raw, (int, float)) else None
+        curve_std = float(np.std(np.asarray(curve_list, dtype=np.float64))) if curve_list else 0.0
+        if peak_v is not None or curve_std > 0.0:
+            wr = float(peak_v) if peak_v is not None else 0.0
+            vr = float(curve_std) if curve_std > 0.0 else wr * 0.35
+            wm = float(anomaly_result.get("wind_mean", 0.0))
+            ws = max(float(anomaly_result.get("wind_std", 0.22)), 1e-6)
+            vm = float(anomaly_result.get("wave_mean", 0.0))
+            vs = max(float(anomaly_result.get("wave_std", 0.12)), 1e-6)
+            wind_z = abs(_zscore(wr, wm, ws))
+            wave_z = abs(_zscore(vr, vm, vs))
+            anomaly_index = 0.5 * wind_z + 0.5 * wave_z
+            if anomaly_index >= 3.0:
+                anomaly_level = "high"
+            elif anomaly_index >= 2.0:
+                anomaly_level = "medium"
+            else:
+                anomaly_level = "low"
+            return {
+                "wind_residual": wr,
+                "wave_residual": vr,
+                "wind_z": float(wind_z),
+                "wave_z": float(wave_z),
+                "anomaly_index": float(anomaly_index),
+                "anomaly_level": anomaly_level,
+                "threshold_rule": "3sigma",
+                "assessment_note": "演示代理：由 peak_score/时序分数推导，非水文观测残差；正式评测需接入命题方风浪要素。",
+            }
         return {
             "wind_residual": 0.0,
             "wave_residual": 0.0,
@@ -109,7 +143,7 @@ def compute_anomaly_assessment(anomaly_result: dict[str, Any]) -> dict[str, Any]
     else:
         anomaly_level = "low"
 
-    return {
+    out = {
         "wind_residual": float(wr),
         "wave_residual": float(vr),
         "wind_z": float(wind_z),
@@ -118,6 +152,10 @@ def compute_anomaly_assessment(anomaly_result: dict[str, Any]) -> dict[str, Any]
         "anomaly_level": anomaly_level,
         "threshold_rule": "3sigma",
     }
+    note = anomaly_result.get("assessment_note")
+    if isinstance(note, str) and note.strip():
+        out["assessment_note"] = note.strip()
+    return out
 
 
 def _dtw_distance(a: list[float], b: list[float]) -> float:

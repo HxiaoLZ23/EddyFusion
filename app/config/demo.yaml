@@ -1,5 +1,5 @@
 app:
-  title: "EddyFusion 演示系统"
+  title: "EddyFusion：面向涡旋—水文—风浪的海洋环境智能分析与预警平台"
   mode: "mock"
   max_upload_mb: 500
   allowed_ext: [".mp4", ".mov", ".avi", ".mkv", ".webm"]
@@ -8,12 +8,25 @@ mock:
   anomaly_threshold: 0.5
   summary_template: "检测到中后段异常增强趋势，建议人工复核关键时段。"
 
+# 实时输入页：风浪联动与解读仅在 peak_score ≥ 阈值且用户手动点击后生成（与上传视频主路径区分）
+realtime_windwave:
+  peak_score_threshold: 0.5
+
+# 结果页「智能解读」：需本机环境变量 DASHSCOPE_API_KEY、DASHSCOPE_MODEL（部署代号）
+# 可选 DASHSCOPE_WORKSPACE、DASHSCOPE_MAX_TOKENS
+llm_report:
+  show_panel: true
+  max_tokens: 2048
+
 typhoon_link:
-  # 结果页自动联动：默认回看时间窗（小时）
-  default_window_hours: 240
-  # 候选事件数量上限
-  default_top_k: 5
-  # 台风知识库事件索引路径
+  # 结果页/实时联动：默认回看时间窗（小时）。2160≈90 天；更大可试 4320≈180 天、8760≈365 天
+  default_window_hours: 8760
+  # 初筛后 DTW 重排保留的候选数
+  default_top_k: 10
+  # 在 config/data.yaml 的 spatial 框基础上向外扩（度），提高与台风轨迹 bbox 相交概率
+  query_lon_pad_deg: 3.0
+  query_lat_pad_deg: 3.0
+  # 台风事件索引（全库可来自 IBTrACS：scripts/download_typhoon_data.py + scripts/build_typhoon_kb.py）
   events_json_path: "data/processed/anomaly/typhoon_kb/events.json"
   # 预置演示案例路径（由 scripts/demo_typhoon_kb_cases.py 生成）
   demo_cases_path: "data/processed/anomaly/typhoon_kb/demo_cases.json"

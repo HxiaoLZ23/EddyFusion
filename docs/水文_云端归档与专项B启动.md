@@ -60,7 +60,35 @@ python scripts/hydro_cloud_assessment.py compare --split test \
 
 将生成的 summary / md **拷入 `AutoDL/outputs/cloud/`**（或 `submission/tables/`）并在 **`开发阶段文档/训练与实验记录.md`**（若使用）记一行：实验 ID、config、目的、val/test 结论。
 
-**下一组（可选）**：同一套路复制 yaml，仅改 `weight: 0.03`，`output_dir` 改为 `outputs/hydro_l0_eos003`，避免并行实验互相覆盖。
+---
+
+### 3.1 第二组：`B-3.1-eos003`（EOS weight 0.03，与 L2 对比）
+
+**配置**：`config/experiments/hydro_hycom_l0_eos003.yaml`（`loss.eos_constraint.weight: 0.03`，`output_dir: outputs/hydro_l0_eos003`）。
+
+**云机（仓库根）执行：**
+
+```bash
+python -m src.hydro.train --config config/experiments/hydro_hycom_l0_eos003.yaml
+
+python scripts/hydro_cloud_assessment.py compare --split val \
+  --baseline-config config/hydro_hycom_l2.yaml --baseline-ckpt outputs/hydro_l2/best.pt \
+  --experiment-config config/experiments/hydro_hycom_l0_eos003.yaml \
+  --experiment-ckpt outputs/hydro_l0_eos003/best.pt \
+  --stats-npz data/processed/stats/hydro_zscore.npz \
+  --out-table-md submission/tables/hydro_l0_eos003_vs_l2_val.md \
+  --out-summary-json AutoDL/outputs/cloud/hydro_compare_val_summary_eos003.json
+
+python scripts/hydro_cloud_assessment.py compare --split test \
+  --baseline-config config/hydro_hycom_l2.yaml --baseline-ckpt outputs/hydro_l2/best.pt \
+  --experiment-config config/experiments/hydro_hycom_l0_eos003.yaml \
+  --experiment-ckpt outputs/hydro_l0_eos003/best.pt \
+  --stats-npz data/processed/stats/hydro_zscore.npz \
+  --out-table-md submission/tables/hydro_l0_eos003_vs_l2_test.md \
+  --out-summary-json AutoDL/outputs/cloud/hydro_compare_test_summary_eos003.json
+```
+
+`compare` 的 JSON 含 **`summary`（含 `baseline_nrmse_avg` / `experiment_nrmse_avg` 等总体项）** 与 **`per_feature`（含每通道 `baseline_nrmse` / `experiment_nrmse`）**；与 `eos005` 产物字段对齐，便于横比。`--stats-npz` 可选，用于表内物理尺度 RMSE 与 raw 块中的 `rmse_physical_scale`。
 
 ---
 

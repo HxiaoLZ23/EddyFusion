@@ -12,7 +12,7 @@ from src.preprocess.netcdf_io import open_netcdf_dataset
 from src.utils.config import load_yaml, project_root, resolve_path
 
 
-def _pick_dataarray(ds: xr.Dataset, candidates: list[str]) -> xr.DataArray:
+def _pick_dataarray(ds: Any, candidates: list[str]) -> Any:
     for name in candidates:
         if name in ds:
             return ds[name]

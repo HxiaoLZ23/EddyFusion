@@ -72,6 +72,14 @@ submission/**/*.pdf
 AutoDL/
 app/data/media/*
 !app/data/media/.gitkeep
+app/data/nc_uploads/*
+!app/data/nc_uploads/.gitkeep
+app/data/hydro_nc_cache/*
+!app/data/hydro_nc_cache/.gitkeep
 
 # Streamlit / 运行时生成的预览帧（量大，勿提交）
-app/data/eddy_preview/
+app/data/eddy_preview/*
+!app/data/eddy_preview/.gitkeep
+
+# 前端（Vite）依赖
+web/node_modules/

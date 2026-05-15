@@ -179,7 +179,20 @@ def main() -> None:
     p.add_argument("--fps", type=int, default=8)
     p.add_argument("--max-frames", type=int, default=180)
     p.add_argument("--time-stride", type=int, default=1)
-    p.add_argument("--web-compatible", action="store_true", help="导出后自动尝试转码为浏览器更兼容的 mp4")
+    web = p.add_mutually_exclusive_group()
+    web.add_argument(
+        "--web-compatible",
+        dest="web_compatible",
+        action="store_true",
+        help="导出后用 ffmpeg 转码为 H.264/yuv420p（推荐，Streamlit/浏览器可播）",
+    )
+    web.add_argument(
+        "--no-web-compatible",
+        dest="web_compatible",
+        action="store_false",
+        help="跳过转码，保留 OpenCV 写入的 mpeg4/mp4v（部分浏览器无法预览）",
+    )
+    p.set_defaults(web_compatible=True)
     args = p.parse_args()
 
     out_mp4 = resolve_path(args.out)

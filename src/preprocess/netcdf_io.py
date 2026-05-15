@@ -7,6 +7,7 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
 
 from src.utils.config import load_yaml, project_root, resolve_path
 
@@ -141,6 +142,38 @@ def open_netcdf_dataset(path: Path) -> tuple[object, Path | None]:
         raise OSError(
             f"无法用 netcdf4 打开（含短路径/扩展路径/临时副本）: {path}\n最后错误: {last_err!r}; 副本错误: {e!r}"
         ) from e
+
+
+def write_xarray_to_netcdf_via_temp(
+    ds: Any,
+    out_path: str | Path,
+    *,
+    encoding: dict[str, Any] | None = None,
+    engine: str = "netcdf4",
+) -> None:
+    """
+    将 xarray Dataset 写出为 NetCDF：先写入 ``%TEMP%`` 下随机英文文件名，再 ``shutil.copy2`` 到目标路径。
+
+    规避 Windows 上 netCDF4 对含中文/非 ASCII 路径直接 ``to_netcdf`` 时的 PermissionError。
+    """
+    out_p = Path(out_path).expanduser().resolve()
+    out_p.parent.mkdir(parents=True, exist_ok=True)
+    if out_p.is_file():
+        out_p.unlink()
+
+    tmp_nc = Path(tempfile.gettempdir()) / f"eddyfusion_wnc_{uuid.uuid4().hex}.nc"
+    try:
+        kwargs: dict[str, Any] = {"engine": engine}
+        if encoding is not None:
+            kwargs["encoding"] = encoding
+        ds.to_netcdf(str(tmp_nc), **kwargs)
+        shutil.copy2(tmp_nc, out_p)
+    finally:
+        if tmp_nc.is_file():
+            try:
+                tmp_nc.unlink()
+            except OSError:
+                pass
 
 
 def inspect_file(path: Path) -> None:

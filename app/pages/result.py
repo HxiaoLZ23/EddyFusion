@@ -1,88 +1,66 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import streamlit as st
 
+from pages.windwave_panel import render_typhoon_linked_outputs
+from services.nc_ingest_service import (
+    MAX_NC_UPLOAD_MB,
+    allowed_nc_suffixes_text,
+    cleanup_old_nc_uploads,
+    save_uploaded_nc,
+)
 from src.anomaly.detect import run_detect
-from src.anomaly.report import render_report
-from src.utils.config import load_yaml, resolve_path
+from src.anomaly.eddy_typhoon_bridge import build_anomaly_result_for_detect, infer_typhoon_link_defaults_from_eddy_result
+from src.anomaly.windwave_nc_bridge import build_eddy_result_from_windwave_netcdf
 
 
-def _safe_float(v: object, default: float) -> float:
-    try:
-        return float(v)
-    except Exception:
-        return default
+def _typhoon_link_context_fingerprint(result: dict) -> str:
+    """会话结果变化（NC 路径或重新生成时间）时刷新联动表单，避免沿用旧 Streamlit session 参数。"""
+    import hashlib
+    import json
 
-
-def _infer_auto_typhoon_query(result: dict) -> dict:
-    data_cfg = {}
-    demo_cfg = {}
-    try:
-        data_cfg = load_yaml("config/data.yaml")
-    except Exception:
-        data_cfg = {}
-    try:
-        demo_cfg = load_yaml("app/config/demo.yaml")
-    except Exception:
-        demo_cfg = {}
-
-    spatial = data_cfg.get("spatial", {}) if isinstance(data_cfg, dict) else {}
-    ty_cfg = demo_cfg.get("typhoon_link", {}) if isinstance(demo_cfg, dict) else {}
-
-    lon_min = _safe_float(spatial.get("lon_min"), 117.0)
-    lon_max = _safe_float(spatial.get("lon_max"), 127.0)
-    lat_min = _safe_float(spatial.get("lat_min"), 31.0)
-    lat_max = _safe_float(spatial.get("lat_max"), 41.0)
-
-    generated_at = result.get("generated_at")
-    if isinstance(generated_at, (int, float)):
-        end_dt = datetime.fromtimestamp(float(generated_at))
-    else:
-        end_dt = datetime.now()
-    window_hours = int(_safe_float(ty_cfg.get("default_window_hours"), 24 * 10))
-    start_dt = end_dt - timedelta(hours=max(1, window_hours))
-
-    default_top_k = int(_safe_float(ty_cfg.get("default_top_k"), 5))
-    events_json_path = str(
-        ty_cfg.get("events_json_path") or resolve_path("data/processed/anomaly/typhoon_kb/events.json")
-    )
-    return {
-        "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "lon_min": lon_min,
-        "lon_max": lon_max,
-        "lat_min": lat_min,
-        "lat_max": lat_max,
-        "top_k": max(1, min(default_top_k, 20)),
-        "events_json_path": events_json_path,
+    meta = result.get("meta") if isinstance(result.get("meta"), dict) else {}
+    blob = {
+        "nc_path": str(meta.get("nc_path") or ""),
+        "generated_at": result.get("generated_at"),
+        "source_type": result.get("source_type"),
     }
+    return hashlib.sha256(json.dumps(blob, sort_keys=True, default=str).encode()).hexdigest()[:32]
 
 
 def _render_typhoon_linkage(result: dict) -> None:
     st.subheader("台风候选事件联动")
     st.caption("已自动推断时间窗与海域范围，并自动检索台风知识库候选事件。")
+    if result.get("wind_wave_from_companion_npz"):
+        if result.get("wind_wave_from_netcdf"):
+            st.info(
+                "已使用**本页上传的 NetCDF** 提取风浪时序（obs 与平滑基线 pred），参与 `run_detect` 的 3σ 分级与台风曲线 DTW。"
+            )
+        else:
+            st.info(
+                "已启用涡旋页上传的**配套 NPZ** 中 `demo_wind_*` / `demo_wave_*`，参与本页 `run_detect` 的 3σ 分级与台风曲线 DTW。"
+            )
 
-    auto_query = _infer_auto_typhoon_query(result)
-    if "ty_link_auto_defaults" not in st.session_state:
+    fp = _typhoon_link_context_fingerprint(result)
+    if st.session_state.get("_ty_link_result_fp") != fp:
+        auto_query = infer_typhoon_link_defaults_from_eddy_result(result)
+        st.session_state["_ty_link_result_fp"] = fp
         st.session_state["ty_link_auto_defaults"] = auto_query
-    for key, value in (
-        ("ty_link_start_time", auto_query["start_time"]),
-        ("ty_link_end_time", auto_query["end_time"]),
-        ("ty_link_top_k", int(auto_query["top_k"])),
-        ("ty_link_lon_min", float(auto_query["lon_min"])),
-        ("ty_link_lon_max", float(auto_query["lon_max"])),
-        ("ty_link_lat_min", float(auto_query["lat_min"])),
-        ("ty_link_lat_max", float(auto_query["lat_max"])),
-        ("ty_link_events_json", str(auto_query["events_json_path"])),
-    ):
-        if key not in st.session_state:
+        for key, value in (
+            ("ty_link_start_time", auto_query["start_time"]),
+            ("ty_link_end_time", auto_query["end_time"]),
+            ("ty_link_top_k", int(auto_query["top_k"])),
+            ("ty_link_lon_min", float(auto_query["lon_min"])),
+            ("ty_link_lon_max", float(auto_query["lon_max"])),
+            ("ty_link_lat_min", float(auto_query["lat_min"])),
+            ("ty_link_lat_max", float(auto_query["lat_max"])),
+            ("ty_link_events_json", str(auto_query["events_json_path"])),
+        ):
             st.session_state[key] = value
 
     with st.expander("联动参数（可调整）", expanded=False):
         if st.button("重置为自动推断参数", key="ty_link_reset_auto"):
-            refreshed = _infer_auto_typhoon_query(result)
+            refreshed = infer_typhoon_link_defaults_from_eddy_result(result)
             st.session_state["ty_link_auto_defaults"] = refreshed
             st.session_state["ty_link_start_time"] = refreshed["start_time"]
             st.session_state["ty_link_end_time"] = refreshed["end_time"]
@@ -100,7 +78,7 @@ def _render_typhoon_linkage(result: dict) -> None:
             top_k = st.slider(
                 "候选数量 Top-K",
                 min_value=1,
-                max_value=20,
+                max_value=25,
                 value=int(defaults["top_k"]),
                 key="ty_link_top_k",
             )
@@ -115,20 +93,19 @@ def _render_typhoon_linkage(result: dict) -> None:
             key="ty_link_events_json",
         )
 
-    anomaly_result = {
-        "start_time": start_time,
-        "end_time": end_time,
-        "lon_min": float(lon_min),
-        "lon_max": float(lon_max),
-        "lat_min": float(lat_min),
-        "lat_max": float(lat_max),
-        "peak_score": result.get("peak_score"),
-        "current_curve": [
-            float(it.get("score", 0.0))
-            for it in (result.get("timeline") or [])
-            if isinstance(it, dict)
-        ],
-    }
+    anomaly_result = build_anomaly_result_for_detect(
+        result,
+        link_defaults={
+            "start_time": start_time,
+            "end_time": end_time,
+            "lon_min": float(lon_min),
+            "lon_max": float(lon_max),
+            "lat_min": float(lat_min),
+            "lat_max": float(lat_max),
+            "top_k": int(top_k),
+            "events_json_path": str(events_json_path),
+        },
+    )
 
     try:
         linked = run_detect(
@@ -141,67 +118,60 @@ def _render_typhoon_linkage(result: dict) -> None:
         st.error(f"台风联动失败：{e}")
         return
 
-    link = linked.get("typhoon_link", {})
-    candidates = link.get("candidates", [])
-    if not candidates:
-        st.warning("未检索到候选台风事件。")
-        with st.expander("联动详情（调试）", expanded=False):
-            st.json(link)
-        return
-
-    st.success(f"检索到 {len(candidates)} 个候选事件")
-    rows = []
-    for c in candidates:
-        rows.append(
-            {
-                "事件ID": c.get("event_id", "-"),
-                "名称": c.get("name", ""),
-                "开始时间": c.get("start_time", ""),
-                "结束时间": c.get("end_time", ""),
-                "强度级别": c.get("intensity_level", ""),
-                "峰值风速(kt)": c.get("peak_wind_kt", ""),
-                "时窗重叠(h)": c.get("time_overlap_hours", ""),
-                "区域重叠": c.get("bbox_overlap_ratio", ""),
-                "分数": c.get("score", ""),
-            }
-        )
-    st.dataframe(rows, use_container_width=True, hide_index=True)
-    jump_col1, jump_col2 = st.columns([2, 3])
-    with jump_col1:
-        if st.button("跳转到台风知识库页（带入当前参数）", key="jump_to_kb_btn", type="secondary"):
-            st.session_state["kb_start_time"] = str(start_time)
-            st.session_state["kb_end_time"] = str(end_time)
-            st.session_state["kb_top_k"] = int(top_k)
-            st.session_state["kb_lon_min"] = float(lon_min)
-            st.session_state["kb_lon_max"] = float(lon_max)
-            st.session_state["kb_lat_min"] = float(lat_min)
-            st.session_state["kb_lat_max"] = float(lat_max)
-            st.session_state["kb_events_json_path"] = str(events_json_path)
-            st.session_state["kb_events_browser_path"] = str(events_json_path)
-            st.session_state["kb_query_autorun"] = True
-            st.session_state["nav_page"] = "台风知识库"
-            st.rerun()
-    with jump_col2:
-        st.caption("将当前时间窗、海域范围、Top-K 与索引路径同步到“台风知识库”页面。")
-    with st.expander("联动详情（技术）", expanded=False):
-        st.json(link)
-    with st.expander("结构化预警报告", expanded=True):
-        report_text = render_report(detect_output=linked)
-        st.text(report_text)
+    render_typhoon_linked_outputs(
+        linked,
+        key_prefix="ty",
+        kb_jump_params={
+            "start_time": start_time,
+            "end_time": end_time,
+            "top_k": int(top_k),
+            "lon_min": float(lon_min),
+            "lon_max": float(lon_max),
+            "lat_min": float(lat_min),
+            "lat_max": float(lat_max),
+            "events_json_path": str(events_json_path),
+        },
+        llm_caption_extra="风浪演示：可在本页直接上传含 u10/v10/浪高的 NC，或使用「涡旋识别」页 NetCDF 路径① 写入的会话；实时系统见峰值阈值+手动生成。",
+    )
 
 
 def render() -> None:
-    st.title("结果联动")
-    st.caption("本页展示“涡旋识别”页已生成的结果，并进行台风知识库联动。")
+    st.title("风浪预警")
+    st.caption(
+        "本页可 **直接上传含风浪要素的 NetCDF** 运行 `run_detect` 与台风联动；也可沿用「涡旋识别」页的 NetCDF 会话。"
+        " **同一会话键 `eddy_last_result`：以最后一次成功操作为准**——涡旋页「运行检测」、或本页「从 NC 构建预警输入」后写覆盖先写，并非并行两套上下文。"
+        " **实时系统**在 `demo.yaml` 的 `realtime_windwave.peak_score_threshold` 达标后，由用户手动点击生成联动与解读。"
+    )
+
+    st.subheader("风浪 NetCDF（独立入口）")
+    st.caption(
+        f"上传 {allowed_nc_suffixes_text()}（单文件 ≤{MAX_NC_UPLOAD_MB}MB），需含 **u10/v10** 或 **有效波高** 等变量，"
+        "规则与 `src/preprocess/anomaly_dataset.py` 中 `extract_wind_wave_series_from_netcdf` 一致。"
+        " 构建成功后写入本会话的 `eddy_last_result`，与「涡旋识别」页带风浪的 NC 路径等价接入下游。"
+    )
+    ww_nc = st.file_uploader("选择风浪要素 NC", type=["nc", "nc4", "cdf"], key="windwave_page_nc_uploader")
+    if st.button("从 NC 构建预警输入", type="primary", key="windwave_nc_build"):
+        if ww_nc is None:
+            st.warning("请先选择 NC 文件。")
+        else:
+            try:
+                saved, _tid = save_uploaded_nc(ww_nc)
+                cleanup_old_nc_uploads(max_files=30)
+                st.session_state["eddy_last_result"] = build_eddy_result_from_windwave_netcdf(saved)
+                st.session_state.pop("last_result", None)
+                st.success("已从 NC 加载风浪时序，下方展示预警概览与台风联动。")
+            except Exception as e:
+                st.error(f"NC 解析失败：{e}")
+
     result = st.session_state.get("eddy_last_result")
     if not result:
         # 兼容旧会话：若曾在结果页直接跑过，仍可展示
         result = st.session_state.get("last_result")
     if not result:
-        st.info("尚无可展示结果，请先在“涡旋识别”页面运行真实推理。")
+        st.info("尚无可展示结果：请在本页上传风浪 NC，或到「涡旋识别」页面运行推理后再回到本页。")
         return
 
-    st.subheader("结果概览")
+    st.subheader("预警概览")
     r1, r2, r3 = st.columns(3)
     r1.metric("状态", str(result.get("status", "unknown")))
     r2.metric("来源", str(result.get("source_type", "upload")))
@@ -212,6 +182,13 @@ def render() -> None:
         r3.metric("峰值分数", "N/A")
     if result.get("summary"):
         st.info(str(result.get("summary")))
+    stt = str(result.get("source_type", ""))
+    if stt == "netcdf_windwave":
+        st.caption("当前上下文来自**本页**上传的风浪 NC，无涡旋关键帧属正常。")
+    elif stt == "netcdf_eddy_windwave":
+        st.caption("当前由**涡旋页** NC（流场+风浪）写入；无视频关键帧属正常。")
+    elif stt == "netcdf_eddy_only":
+        st.caption("当前为**涡旋页**仅流场 NC：风浪侧可能走演示代理，完整风浪分级建议用路径① 或本页上传风浪 NC。")
 
     st.subheader("事件时间轴")
     timeline = result.get("timeline", [])
