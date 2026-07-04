@@ -1,0 +1,824 @@
+{
+  "table_id": "6-3",
+  "title": "历史风过程检索结果统计",
+  "events_json": "F:\\创赛\\data\\processed\\anomaly\\typhoon_kb\\events.json",
+  "test_years": [
+    2024
+  ],
+  "top_k": 10,
+  "min_peak_wind_kt": 34.0,
+  "kb": {
+    "n_events_total": 13547,
+    "n_with_wind_track": 10378,
+    "n_peak_only_fallback": 30
+  },
+  "n_eval_queries": 89,
+  "n_retrieval_success": 89,
+  "retrieval_success_rate": 1.0,
+  "n_dtw_rerank_success": 89,
+  "dtw_rerank_completion_rate": 1.0,
+  "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+  "per_event": [
+    {
+      "event_id": "2023292S03172",
+      "name": "LOLA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2023316S08168",
+      "name": "MAL",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2023337S08165",
+      "name": "JASPER",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2023364S19035",
+      "name": "ALVARO",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024012S09093",
+      "name": "ANGGREK",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024012S12059",
+      "name": "BELAL",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024017S15151",
+      "name": "KIRRILY",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024022S16058",
+      "name": "CANDICE",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024029S15063",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024031S24154",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024035S16188",
+      "name": "NAT",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024037S09184",
+      "name": "OSAI",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024044S14066",
+      "name": "DJOUNGOU",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024044S15134",
+      "name": "LINCOLN",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024045S15192",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024049S17052",
+      "name": "ELEANOR",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024061S11062",
+      "name": "FILIPO",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024067S10090",
+      "name": "NEVILLE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024073S14128",
+      "name": "MEGAN",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024082S08054",
+      "name": "GAMANE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024096S11120",
+      "name": "OLGA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024100S11152",
+      "name": "PAUL",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024121S07047",
+      "name": "HIDAYA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024134S07055",
+      "name": "IALY",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024139S02072",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024141N03142",
+      "name": "EWINIAR",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024145N14087",
+      "name": "REMAL",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024151N18113",
+      "name": "MALIKSI",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024170N20267",
+      "name": "ALBERTO",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024181N09320",
+      "name": "BERYL",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024183N20265",
+      "name": "CHRIS",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024186N15256",
+      "name": "ALETTA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024198N08130",
+      "name": "PRAPIROON",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024201N12133",
+      "name": "GAEMI",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024207N16250",
+      "name": "BUD",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024213N14254",
+      "name": "CARLOTTA",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024216N20284",
+      "name": "DEBBY",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024216N12231",
+      "name": "DANIEL",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024218N16247",
+      "name": "EMILIA",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024218N23143",
+      "name": "MARIA",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024218N14254",
+      "name": "FABIO",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024224N27154",
+      "name": "SON-TINH",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024225N22135",
+      "name": "AMPIL",
+      "linked": true,
+      "n_candidates": 6,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 6
+    },
+    {
+      "event_id": "2024225N14313",
+      "name": "ERNESTO",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024225N24147",
+      "name": "WUKONG",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024231N24126",
+      "name": "JONGDARI",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024231N14251",
+      "name": "GILMA",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024233N15148",
+      "name": "SHANSHAN",
+      "linked": true,
+      "n_candidates": 5,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 5
+    },
+    {
+      "event_id": "2024235N16223",
+      "name": "HONE",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024236N14248",
+      "name": "HECTOR",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024238N25077",
+      "name": "ASNA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024244N09137",
+      "name": "YAGI",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024246N22147",
+      "name": "LEEPI",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024253N11148",
+      "name": "BEBINCA",
+      "linked": true,
+      "n_candidates": 5,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 5
+    },
+    {
+      "event_id": "2024253N21266",
+      "name": "FRANCINE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024256N16332",
+      "name": "GORDON",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024256N18254",
+      "name": "ILEANA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024259N12145",
+      "name": "PULASAN",
+      "linked": true,
+      "n_candidates": 5,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 5
+    },
+    {
+      "event_id": "2024259N17126",
+      "name": "SOULIK",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024259N31284",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024267N14261",
+      "name": "JOHN",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024267N29129",
+      "name": "CIMARON",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024268N17278",
+      "name": "HELENE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024269N39302",
+      "name": "ISAAC",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024269N14150",
+      "name": "JEBI",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024270N24128",
+      "name": "KRATHON",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024271N17319",
+      "name": "JOYCE",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024274N14328",
+      "name": "KIRK",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024275N14264",
+      "name": "UNNAMED",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024275N10336",
+      "name": "LESLIE",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024278N11150",
+      "name": "BARIJAT",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024279N21265",
+      "name": "MILTON",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024293N13141",
+      "name": "TRAMI",
+      "linked": true,
+      "n_candidates": 2,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 2
+    },
+    {
+      "event_id": "2024293N17275",
+      "name": "NADINE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024293N21294",
+      "name": "OSCAR",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024295N15092",
+      "name": "DANA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024296N13260",
+      "name": "KRISTY",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024298N13150",
+      "name": "KONG-REY",
+      "linked": true,
+      "n_candidates": 3,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 3
+    },
+    {
+      "event_id": "2024306N39319",
+      "name": "PATTY",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024307N11232",
+      "name": "LANE",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024307N06143",
+      "name": "YINXING",
+      "linked": true,
+      "n_candidates": 5,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 5
+    },
+    {
+      "event_id": "2024309N13283",
+      "name": "RAFAEL",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024312N14145",
+      "name": "TORAJI",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024313N10169",
+      "name": "MAN-YI",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024314N07151",
+      "name": "USAGI",
+      "linked": true,
+      "n_candidates": 4,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 4
+    },
+    {
+      "event_id": "2024319N16282",
+      "name": "SARA",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024329N04089",
+      "name": "FENGAL",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "2024357N10115",
+      "name": "PABUK",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    },
+    {
+      "event_id": "DEMO_202408_WP",
+      "name": "DEMO_WP_2024",
+      "linked": true,
+      "n_candidates": 1,
+      "dtw_enabled": true,
+      "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+      "n_with_track": 1
+    }
+  ]
+}

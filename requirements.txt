@@ -2,8 +2,11 @@
 # PyTorch：请按本机 CUDA 从 https://pytorch.org 安装对应 wheel，再 pip install -r requirements.txt
 torch>=2.5.1
 numpy>=1.21
+Pillow>=9.0
 xarray>=2023.1.0
 netCDF4>=1.6.0
+h5netcdf>=1.3.0  # NetCDF-HDF；配合 h5py 在 Windows 含中文路径时更稳（见 src.utils.xarray_nc_open）
+h5py>=3.10.0
 scipy>=1.9
 pandas>=1.4
 PyYAML>=6.0
@@ -27,5 +30,14 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 
+# 本地系统测试与论文测试产物导出
+pytest>=8.0.0
+httpx>=0.27.0
+playwright>=1.44.0  # UI 截图需另执行: python -m playwright install chromium
+
 # 可选：大数组并行
 # dask>=2023.1.0
+# 可选：涡旋物理场 GPU 对照 CuPy（Windows 另需 CUDA Toolkit 11.8 + CUDA_PATH；否则用 --backend torch）
+# cupy-cuda11x>=13.0
+# nvidia-cuda-nvrtc-cu11
+# nvidia-cuda-runtime-cu11

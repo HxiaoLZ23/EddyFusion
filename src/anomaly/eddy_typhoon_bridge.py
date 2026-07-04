@@ -45,7 +45,7 @@ def _load_typhoon_link_yaml_cfgs() -> tuple[dict[str, Any], dict[str, Any]]:
 
 def typhoon_query_bbox_from_configs() -> tuple[float, float, float, float]:
     """
-    data.yaml 海区 + demo typhoon_link 外扩，与结果页/联动推断一致（供台风知识库默认表单等复用）。
+    data.yaml 海区 + demo typhoon_link 外扩，与结果页/联动推断一致（供台风查询默认表单等复用）。
     """
     data_cfg, demo_cfg = _load_typhoon_link_yaml_cfgs()
     spatial = data_cfg.get("spatial", {}) if isinstance(data_cfg.get("spatial"), dict) else {}
@@ -164,6 +164,50 @@ def _read_nc_spatiotemporal_bounds_for_typhoon(nc_path: Path) -> dict[str, Any] 
                 pass
 
 
+def resolve_typhoon_history_time_window(
+    *,
+    ty_cfg: dict[str, Any],
+    anchor_end: datetime,
+    anomaly_start: datetime | None = None,
+    anomaly_end: datetime | None = None,
+) -> dict[str, Any]:
+    """
+    历史台风案例检索的时间窗（与当前异常 NC 时段解耦）。
+
+    - full：在 history_min_year ~ history_max_year（或锚点年末）内按海区筛全库；
+    - lookback：从 anchor_end 向前至少 5 年（默认 10 年）。
+    """
+    mode = str(ty_cfg.get("history_search_mode") or "full").strip().lower()
+    lookback_years = max(5, int(safe_float(ty_cfg.get("history_lookback_years"), 10)))
+
+    if mode == "lookback":
+        end_dt = anchor_end
+        start_dt = end_dt - timedelta(days=365 * lookback_years)
+    else:
+        min_year = int(safe_float(ty_cfg.get("history_min_year"), 1945))
+        max_year_raw = ty_cfg.get("history_max_year")
+        if max_year_raw is None or str(max_year_raw).strip().lower() in {"", "null", "none"}:
+            max_year = max(anchor_end.year, datetime.now().year) + 1
+        else:
+            max_year = int(safe_float(max_year_raw, anchor_end.year + 1))
+        start_dt = datetime(min_year, 1, 1)
+        end_dt = datetime(max_year, 12, 31, 23, 59, 59)
+
+    out: dict[str, Any] = {
+        "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "history_search_mode": mode,
+    }
+    if mode == "lookback":
+        out["history_lookback_years"] = lookback_years
+    if isinstance(anomaly_start, datetime) and isinstance(anomaly_end, datetime):
+        if anomaly_start > anomaly_end:
+            anomaly_start, anomaly_end = anomaly_end, anomaly_start
+        out["anomaly_start_time"] = anomaly_start.strftime("%Y-%m-%d %H:%M:%S")
+        out["anomaly_end_time"] = anomaly_end.strftime("%Y-%m-%d %H:%M:%S")
+    return out
+
+
 def _bbox_with_pad_from_spatial(
     spatial: dict[str, Any],
     ty_cfg: dict[str, Any],
@@ -192,7 +236,8 @@ def _bbox_with_pad_from_spatial(
 
 def infer_typhoon_link_defaults_from_eddy_result(eddy_result: dict[str, Any]) -> dict[str, Any]:
     """
-    与结果页「自动推断」一致：优先用当前会话 NC 的经纬度与时间坐标；否则回退 config/data.yaml 海区 + demo 时间窗。
+    与结果页「自动推断」一致：海区优先用当前 NC 经纬度；时间窗用于**历史案例检索**（默认全库），
+    与 NC 异常时段解耦——NC 时段仅写入 anomaly_start/end 供展示与 DTW 查询曲线对齐。
     """
     data_cfg, demo_cfg = _load_typhoon_link_yaml_cfgs()
     spatial = data_cfg.get("spatial", {}) if isinstance(data_cfg.get("spatial"), dict) else {}
@@ -202,11 +247,11 @@ def infer_typhoon_link_defaults_from_eddy_result(eddy_result: dict[str, Any]) ->
 
     generated_at = eddy_result.get("generated_at")
     if isinstance(generated_at, (int, float)):
-        end_dt = datetime.fromtimestamp(float(generated_at))
+        anchor_end = datetime.fromtimestamp(float(generated_at))
     else:
-        end_dt = datetime.now()
-    window_hours = int(safe_float(ty_cfg.get("default_window_hours"), 24 * 10))
-    start_dt = end_dt - timedelta(hours=max(1, window_hours))
+        anchor_end = datetime.now()
+    anomaly_start: datetime | None = None
+    anomaly_end: datetime | None = None
 
     nc_p = _resolve_nc_path_for_typhoon_link(eddy_result)
     if nc_p is not None:
@@ -224,23 +269,32 @@ def infer_typhoon_link_defaults_from_eddy_result(eddy_result: dict[str, Any]) ->
             b0 = bounds.get("start_dt")
             b1 = bounds.get("end_dt")
             if isinstance(b0, datetime) and isinstance(b1, datetime):
-                start_dt, end_dt = b0, b1
-                if start_dt > end_dt:
-                    start_dt, end_dt = end_dt, start_dt
+                anomaly_start, anomaly_end = b0, b1
+                if anomaly_start > anomaly_end:
+                    anomaly_start, anomaly_end = anomaly_end, anomaly_start
+                anchor_end = anomaly_end
+
+    history = resolve_typhoon_history_time_window(
+        ty_cfg=ty_cfg,
+        anchor_end=anchor_end,
+        anomaly_start=anomaly_start,
+        anomaly_end=anomaly_end,
+    )
 
     default_top_k = int(safe_float(ty_cfg.get("default_top_k"), 5))
     events_json_path = str(
         ty_cfg.get("events_json_path") or resolve_path("data/processed/anomaly/typhoon_kb/events.json")
     )
     return {
-        "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "end_time": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "start_time": history["start_time"],
+        "end_time": history["end_time"],
         "lon_min": lon_min,
         "lon_max": lon_max,
         "lat_min": lat_min,
         "lat_max": lat_max,
         "top_k": max(1, min(default_top_k, 25)),
         "events_json_path": events_json_path,
+        **{k: history[k] for k in ("history_search_mode", "history_lookback_years", "anomaly_start_time", "anomaly_end_time") if k in history},
     }
 
 
@@ -300,8 +354,8 @@ def strip_wind_wave_companion_from_eddy_result(eddy_result: dict[str, Any]) -> d
 
 
 def _wind_wave_extras_for_anomaly(eddy_result: dict[str, Any]) -> dict[str, Any]:
-    """供 compute_anomaly_assessment 使用的残差与尺度（仅配套 NPZ 启用时）。"""
-    if not eddy_result.get("wind_wave_from_companion_npz"):
+    """供 compute_anomaly_assessment 使用的残差与尺度（NPZ 或 NC 风浪时序）。"""
+    if not eddy_result.get("wind_wave_from_companion_npz") and not eddy_result.get("wind_wave_from_netcdf"):
         return {}
     wo = eddy_result.get("demo_wind_observed")
     wp = eddy_result.get("demo_wind_predicted")
@@ -328,16 +382,119 @@ def _wind_wave_extras_for_anomaly(eddy_result: dict[str, Any]) -> dict[str, Any]
     vs = max(float(np.std(hd)), 0.02)
     note = eddy_result.get("wind_wave_assessment_note")
     if not (isinstance(note, str) and note.strip()):
-        note = "配套 NPZ：演示用风速/波高 obs−pred 序列（非命题方原始格点）。"
-    return {
+        if not eddy_result.get("wind_wave_from_netcdf"):
+            note = "配套 NPZ：演示用风速/波高 obs−pred 序列（非命题方原始格点）。"
+        elif eddy_result.get("prediction_backend") == "lstm":
+            note = "NC 风浪：WindWaveLSTM 滑窗一步预测（config/anomaly.yaml + best.pt）。"
+        else:
+            note = ""
+    out: dict[str, Any] = {
         "wind_residual": wr,
         "wave_residual": vr,
         "wind_mean": 0.0,
         "wind_std": ws,
         "wave_mean": 0.0,
         "wave_std": vs,
-        "assessment_note": note.strip(),
     }
+    if isinstance(note, str) and note.strip():
+        out["assessment_note"] = note.strip()
+    return out
+
+
+def _wind_wave_series_from_eddy(eddy_result: dict[str, Any]) -> tuple[list[float], list[float], list[float], list[float]] | None:
+    if not eddy_result.get("wind_wave_from_companion_npz") and not eddy_result.get("wind_wave_from_netcdf"):
+        return None
+    wo = eddy_result.get("demo_wind_observed")
+    wp = eddy_result.get("demo_wind_predicted")
+    ho = eddy_result.get("demo_wave_observed")
+    hp = eddy_result.get("demo_wave_predicted")
+    if not (
+        isinstance(wo, list)
+        and isinstance(wp, list)
+        and isinstance(ho, list)
+        and isinstance(hp, list)
+        and len(wo) == len(wp) == len(ho) == len(hp)
+        and len(wo) > 0
+    ):
+        return None
+    return (
+        [float(v) for v in wo],
+        [float(v) for v in wp],
+        [float(v) for v in ho],
+        [float(v) for v in hp],
+    )
+
+
+def _time_labels_from_eddy(eddy_result: dict[str, Any], n: int) -> list[str]:
+    meta = eddy_result.get("meta") if isinstance(eddy_result.get("meta"), dict) else {}
+    extract_meta = meta.get("wind_wave_extract") if isinstance(meta.get("wind_wave_extract"), dict) else {}
+    time_labels = extract_meta.get("time_labels")
+    if isinstance(time_labels, list) and len(time_labels) >= n:
+        return [str(time_labels[i]) for i in range(n)]
+    return [f"T+{i}" for i in range(n)]
+
+
+def _event_window_times(
+    window: dict[str, Any],
+    time_labels: list[str],
+) -> tuple[str | None, str | None]:
+    t0 = window.get("t_start_padded")
+    t1 = window.get("t_end_padded")
+    if not isinstance(t0, int) or not isinstance(t1, int):
+        return None, None
+    if t0 < 0 or t1 >= len(time_labels) or t1 < t0:
+        return None, None
+    return time_labels[t0], time_labels[t1]
+
+
+def _prepare_wind_dtw_fields(eddy_result: dict[str, Any]) -> dict[str, Any]:
+    from src.anomaly.detect import build_wind_dtw_query_curve, compute_series_anomaly_segments
+    from src.anomaly.dtw_config import load_dtw_link_config
+
+    series = _wind_wave_series_from_eddy(eddy_result)
+    if series is None:
+        return {}
+    wo, wp, ho, hp = series
+    cfg = load_dtw_link_config()
+    mode = str(cfg.get("dtw_match_mode", "regional_mean_obs_vs_ibtracs_center"))
+    segments = compute_series_anomaly_segments(
+        wind_observed=wo,
+        wind_predicted=wp,
+        wave_observed=ho,
+        wave_predicted=hp,
+    )
+    curve, meta = build_wind_dtw_query_curve(
+        wind_observed=wo,
+        wind_predicted=wp,
+        wave_observed=ho,
+        wave_predicted=hp,
+        segments=segments,
+        mode=mode,
+        dtw_config=cfg,
+    )
+    window = meta.get("window") if isinstance(meta.get("window"), dict) else {}
+    labels = _time_labels_from_eddy(eddy_result, len(wo))
+    ev_start, ev_end = _event_window_times(window, labels)
+    out: dict[str, Any] = {
+        "wind_dtw_curve": curve,
+        "anomaly_segments": segments,
+        "anomaly_event_window": window,
+        "dtw_match_mode": mode,
+        "dtw_query_curve": meta.get("query_curve"),
+        "dtw_fallback_reason": meta.get("fallback_reason"),
+        "wind_observed": wo,
+        "wind_predicted": wp,
+        "wave_observed": ho,
+        "wave_predicted": hp,
+        "demo_wind_observed": wo,
+        "demo_wind_predicted": wp,
+        "demo_wave_observed": ho,
+        "demo_wave_predicted": hp,
+    }
+    if ev_start and ev_end:
+        out["anomaly_start_time"] = ev_start
+        out["anomaly_end_time"] = ev_end
+    return out
 
 
 def _current_curve_for_detect(eddy_result: dict[str, Any]) -> list[float]:
@@ -379,7 +536,9 @@ def build_anomaly_result_for_detect(
     *,
     link_defaults: dict[str, Any],
 ) -> dict[str, Any]:
-    """组装 run_detect 的 anomaly_result（时间窗与海区来自 link_defaults；配套 NPZ 时写入风浪残差与曲线）。"""
+    """组装 run_detect 的 anomaly_result（时间窗与海区来自 link_defaults；风浪 NC/NPZ 时写入序列与 DTW 曲线）。"""
+    nc_cov_start = link_defaults.get("anomaly_start_time")
+    nc_cov_end = link_defaults.get("anomaly_end_time")
     ar: dict[str, Any] = {
         "start_time": link_defaults["start_time"],
         "end_time": link_defaults["end_time"],
@@ -390,5 +549,20 @@ def build_anomaly_result_for_detect(
         "peak_score": eddy_result.get("peak_score"),
         "current_curve": _current_curve_for_detect(eddy_result),
     }
+    if nc_cov_start:
+        ar["nc_coverage_start_time"] = nc_cov_start
+    if nc_cov_end:
+        ar["nc_coverage_end_time"] = nc_cov_end
+    for meta_key in (
+        "history_search_mode",
+        "history_lookback_years",
+    ):
+        if meta_key in link_defaults:
+            ar[meta_key] = link_defaults[meta_key]
     ar.update(_wind_wave_extras_for_anomaly(eddy_result))
+    ar.update(_prepare_wind_dtw_fields(eddy_result))
+    if "anomaly_start_time" not in ar and nc_cov_start:
+        ar["anomaly_start_time"] = nc_cov_start
+    if "anomaly_end_time" not in ar and nc_cov_end:
+        ar["anomaly_end_time"] = nc_cov_end
     return ar

@@ -153,8 +153,10 @@ def try_llm_report(
     payload = build_user_payload_from_detect(detect_output)
     fp = payload_fingerprint(payload)
 
-    key = (api_key or os.environ.get("DASHSCOPE_API_KEY", "") or "").strip()
-    m = (model or os.environ.get("DASHSCOPE_MODEL", "") or "").strip()
+    from src.utils.dashscope_settings import get_dashscope_api_key, get_dashscope_model
+
+    key = get_dashscope_api_key(api_key)
+    m = get_dashscope_model(model)
     if not key:
         return None, "未配置 DASHSCOPE_API_KEY", fp
     if not m:

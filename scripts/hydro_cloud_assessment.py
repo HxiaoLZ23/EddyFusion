@@ -2,7 +2,7 @@
 """
 云端专项：水文预处理核查 + L0 vs 基线扩展指标对比。
 
-对应文档：`docs/下一步执行清单_云端评估前端与L0优化.md` §1、`docs/后续开发工作清单_未完成项与云端L0专项.md` §2。
+对应文档：`docs/开发规划/下一步执行清单_云端评估前端与L0优化.md` §1、`docs/开发规划/后续开发工作清单_未完成项与云端L0专项.md` §2。
 
 用法示例：
   python scripts/hydro_cloud_assessment.py audit --hydro-config config/hydro_hycom_l0.yaml --data-config config/data.yaml
@@ -12,7 +12,7 @@
     --experiment-ckpt outputs/hydro_l0_eos003/best.pt \\
     --out-table-md submission/tables/hydro_l0_eos003_vs_l2_val.md \\
     --out-summary-json AutoDL/outputs/cloud/hydro_compare_val_summary_eos003.json
-  # compare 输出含 summary（含 NRMSE_avg）与 per_feature（含逐通道 NRMSE），与 eval.py NRMSE 口径一致。
+  # compare：z-space NRMSE + 物理空间 NRMSE（需 hydro_zscore.npz）。
 """
 
 from __future__ import annotations
@@ -201,7 +201,13 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
     device = torch.device(pick_device(exp_cfg["train"].get("device", "cpu")))
 
-    stats_path = resolve_path(args.stats_npz) if args.stats_npz else None
+    stats_path: Path | None = None
+    if args.stats_npz:
+        stats_path = resolve_path(args.stats_npz)
+    else:
+        default_stats = resolve_path("data/processed/stats/hydro_zscore.npz")
+        if default_stats.is_file():
+            stats_path = default_stats
 
     ckpt_b = resolve_path(args.baseline_ckpt)
     ckpt_e = resolve_path(args.experiment_ckpt)
@@ -228,6 +234,16 @@ def cmd_compare(args: argparse.Namespace) -> int:
         stats_npz_path=stats_path,
         max_batches=args.max_batches,
     )
+
+    has_phys = "nrmse_physical_per_feature" in m_base and "nrmse_physical_per_feature" in m_exp
+    if not has_phys:
+        if stats_path is None or not stats_path.is_file():
+            print(
+                "提示: 未提供可用的 --stats-npz，跳过物理空间 NRMSE；"
+                "请指定 data/processed/stats/hydro_zscore.npz"
+            )
+        else:
+            print("提示: stats 已加载但未产出 nrmse_physical_per_feature，请检查 mean/std 通道数")
 
     feats = list(base_cfg["data"]["target_features"])
     rows: list[dict[str, Any]] = []
@@ -258,6 +274,11 @@ def cmd_compare(args: argparse.Namespace) -> int:
         if rpb is not None and rpe is not None:
             row["baseline_rmse_phys"] = float(rpb)
             row["experiment_rmse_phys"] = float(rpe)
+        if has_phys:
+            row["baseline_nrmse_phys"] = float(m_base["nrmse_physical_per_feature"][name])
+            row["experiment_nrmse_phys"] = float(m_exp["nrmse_physical_per_feature"][name])
+            row["baseline_rmse_phys_denorm"] = float(m_base["rmse_physical_per_feature"][name])
+            row["experiment_rmse_phys_denorm"] = float(m_exp["rmse_physical_per_feature"][name])
         rows.append(row)
 
     base_skill_avg = m_base.get("skill_avg")
@@ -265,6 +286,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
     verdict_mae = float(m_exp["mae_avg"]) < float(m_base["mae_avg"])
     verdict_nrmse = float(m_exp["nrmse_avg"]) < float(m_base["nrmse_avg"])
+    verdict_nrmse_phys = None
+    if has_phys:
+        verdict_nrmse_phys = float(m_exp["nrmse_physical_avg"]) < float(m_base["nrmse_physical_avg"])
     verdict_skill = False
     if base_skill_avg is not None and exp_skill_avg is not None:
         verdict_skill = float(exp_skill_avg) > float(base_skill_avg)
@@ -289,10 +313,18 @@ def cmd_compare(args: argparse.Namespace) -> int:
         "material_line_l0_stable_improve": verdict_mae and verdict_skill if base_skill_avg is not None else None,
         "definitions": {
             "nrmse": "与 src/hydro/eval.py 一致：RMSE / mean(|y|)，在 z-score 目标上按 B×T×H×W 聚合",
+            "nrmse_physical": "反标准化后 RMSE_phys / mean(|y_phys|)，stats 来自 hydro_zscore.npz",
             "skill_vs_persistence": "1 - MSE_model / MSE_naive ，naive = 复制输入末时刻到整个预报窗",
-            "rmse_physical_scale": "若提供 hydro_zscore.npz，则 RMSE(z) * std[channel]（与原数据同量纲缩放）",
+            "rmse_physical_scale": "RMSE(z)×std，与 rmse_physical_per_feature 对误差等价，NRMSE 须用 nrmse_physical",
         },
     }
+    if has_phys:
+        summary_block["stats_npz"] = str(stats_path)
+        summary_block["baseline_nrmse_physical_avg"] = float(m_base["nrmse_physical_avg"])
+        summary_block["experiment_nrmse_physical_avg"] = float(m_exp["nrmse_physical_avg"])
+        summary_block["baseline_rmse_physical_avg"] = float(m_base["rmse_physical_avg"])
+        summary_block["experiment_rmse_physical_avg"] = float(m_exp["rmse_physical_avg"])
+        summary_block["conclusion_nrmse_physical_avg_experiment_lower"] = verdict_nrmse_phys
 
     print(json.dumps({"summary": summary_block, "per_feature": rows}, ensure_ascii=False, indent=2, default=str))
 
@@ -311,28 +343,49 @@ def cmd_compare(args: argparse.Namespace) -> int:
             "| 项 | baseline | experiment | 结论（实验优于基线？） |",
             "| --- | --- | --- | --- |",
             f"| MAE_avg (norm空间) | {m_base['mae_avg']:.6g} | {m_exp['mae_avg']:.6g} | {'是' if verdict_mae else '否'} |",
-            f"| NRMSE_avg（与 eval 口径一致） | {m_base['nrmse_avg']:.6g} | {m_exp['nrmse_avg']:.6g} | {'是' if verdict_nrmse else '否'} |",
+            f"| NRMSE_avg（z-score 空间） | {m_base['nrmse_avg']:.6g} | {m_exp['nrmse_avg']:.6g} | {'是' if verdict_nrmse else '否'} |",
         ]
+        if has_phys:
+            lines_md.append(
+                f"| NRMSE_avg（物理空间） | {m_base['nrmse_physical_avg']:.6g} | "
+                f"{m_exp['nrmse_physical_avg']:.6g} | {'是' if verdict_nrmse_phys else '否'} |"
+            )
         if base_skill_avg is not None:
             yes_skill = '是' if verdict_skill else '否'
             lines_md.append(
                 f"| Skill_avg (vs persistence) | {float(base_skill_avg):.6g} | "
                 f"{float(exp_skill_avg or 0):.6g} | {yes_skill} |"
             )
-        lines_md += [
-            "",
-            "## 通道明细",
-            "",
-            "| channel | MAE_B | MAE_E | RMSE_B | RMSE_E | NRMSE_B | NRMSE_E | Skill_B | Skill_E | r_B | r_E |",
-        ]
-        lines_md.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-        for r in rows:
-            lines_md.append(
-                f"| {r['feature']} | {r['baseline_mae']:.6g} | {r['experiment_mae']:.6g} | "
-                f"{r['baseline_rmse_norm']:.6g} | {r['experiment_rmse_norm']:.6g} | "
-                f"{r['baseline_nrmse']:.6g} | {r['experiment_nrmse']:.6g} | "
-                f"{r['baseline_skill']} | {r['experiment_skill']} | {r['baseline_pearson']} | {r['experiment_pearson']} |"
-            )
+        if has_phys:
+            lines_md += [
+                "",
+                "## 通道明细（z-score 与物理 NRMSE）",
+                "",
+                "| channel | NRMSE_B(z) | NRMSE_E(z) | NRMSE_B(phys) | NRMSE_E(phys) | RMSE_B(phys) | RMSE_E(phys) | Skill_B | Skill_E |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            ]
+            for r in rows:
+                lines_md.append(
+                    f"| {r['feature']} | {r['baseline_nrmse']:.6g} | {r['experiment_nrmse']:.6g} | "
+                    f"{r['baseline_nrmse_phys']:.6g} | {r['experiment_nrmse_phys']:.6g} | "
+                    f"{r['baseline_rmse_phys_denorm']:.6g} | {r['experiment_rmse_phys_denorm']:.6g} | "
+                    f"{r['baseline_skill']} | {r['experiment_skill']} |"
+                )
+        else:
+            lines_md += [
+                "",
+                "## 通道明细",
+                "",
+                "| channel | MAE_B | MAE_E | RMSE_B | RMSE_E | NRMSE_B | NRMSE_E | Skill_B | Skill_E | r_B | r_E |",
+            ]
+            lines_md.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+            for r in rows:
+                lines_md.append(
+                    f"| {r['feature']} | {r['baseline_mae']:.6g} | {r['experiment_mae']:.6g} | "
+                    f"{r['baseline_rmse_norm']:.6g} | {r['experiment_rmse_norm']:.6g} | "
+                    f"{r['baseline_nrmse']:.6g} | {r['experiment_nrmse']:.6g} | "
+                    f"{r['baseline_skill']} | {r['experiment_skill']} | {r['baseline_pearson']} | {r['experiment_pearson']} |"
+                )
         md_path.write_text("\n".join(lines_md), encoding="utf-8")
         print(f"wrote {md_path}")
 
@@ -377,7 +430,7 @@ def main() -> None:
         "--stats-npz",
         type=str,
         default="",
-        help="可选：data/processed/stats/hydro_zscore.npz，用于物理尺度 RMSE",
+        help="Z-score 统计量；默认尝试 data/processed/stats/hydro_zscore.npz，用于物理 RMSE/NRMSE",
     )
     p_cmp.add_argument("--max-batches", type=int, default=None, help="仅调试用，限制批次数")
     p_cmp.add_argument("--force", action="store_true", help="data 路径不一致时仍运行")

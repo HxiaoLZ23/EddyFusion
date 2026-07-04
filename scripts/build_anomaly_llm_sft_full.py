@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 构建风浪异常 LLM（百炼）SFT 正式训练集 / 验证集 ChatML(JSONL)。
-与 docs/风浪异常模块_LLM演示报告优化_百炼调优规划.md §9 对齐：烟测复盘后的 system 约束 + 分层场景。
+与 docs/开发规划/风浪异常模块_LLM演示报告优化_百炼调优规划.md §9 对齐：烟测复盘后的 system 约束 + 分层场景。
 
 产出（默认路径，第二轮）：
   submission/datasets/anomaly_llm_sft_train_chatml_r2.jsonl   (~300条)
@@ -134,7 +134,7 @@ def _assistant_typhoon(
             sum_a += " " + reconcile_hint
 
         hist = (
-            "在当前给定时间窗与海区范围的台风知识库检索结果中，未返回可对齐的历史台风个例。"
+            "在当前给定时间窗与海区范围的台风查询检索结果中，未返回可对齐的历史台风个例。"
             "这仅表示在本次索引与阈值下未发现足够重叠的类比对象，并不等于海区一定无风浪风险，"
             "亦不排除温带系统、局地强对流或其它致因。"
         )
@@ -307,7 +307,7 @@ def main() -> None:
 
     events_path = REPO_ROOT / "data/processed/anomaly/typhoon_kb/events.json"
     if not events_path.is_file():
-        print(f"缺失 {events_path}，请先构建台风知识库索引。", file=sys.stderr)
+        print(f"缺失 {events_path}，请先构建台风查询索引。", file=sys.stderr)
         raise SystemExit(1)
 
     events = json.loads(events_path.read_text(encoding="utf-8"))

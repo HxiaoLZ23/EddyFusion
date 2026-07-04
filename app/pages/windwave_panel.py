@@ -21,7 +21,7 @@ def render_typhoon_linked_outputs(
     link = linked.get("typhoon_link", {})
     candidates = link.get("candidates", [])
     if not candidates:
-        st.warning("未检索到候选台风事件。下方仍可使用规则模板与智能解读（基于当前异常评估与空候选）。")
+        st.warning("无候选台风事件（仍可按规则模板 / 可选 LLM 解读）。")
     else:
         st.success(f"检索到 {len(candidates)} 个候选事件")
 
@@ -47,7 +47,7 @@ def render_typhoon_linked_outputs(
         jump_col1, jump_col2 = st.columns([2, 3])
         with jump_col1:
             if st.button(
-                "跳转到台风知识库页（带入当前参数）",
+                "跳转到台风查询页（带入当前参数）",
                 key=f"{key_prefix}_jump_to_kb_btn",
                 type="secondary",
                 disabled=not bool(candidates),
@@ -62,10 +62,10 @@ def render_typhoon_linked_outputs(
                 st.session_state["kb_events_json_path"] = str(kb_jump_params["events_json_path"])
                 st.session_state["kb_events_browser_path"] = str(kb_jump_params["events_json_path"])
                 st.session_state["kb_query_autorun"] = True
-                st.session_state["_nav_page_pending"] = "台风知识库"
+                st.session_state["_nav_page_pending"] = "台风查询"
                 st.rerun()
         with jump_col2:
-            st.caption("将当前时间窗、海域范围、Top-K 与索引路径同步到“台风知识库”页面。")
+            st.caption("同步参数到「台风查询」")
 
     with st.expander("联动详情（技术）", expanded=False):
         st.json(link)
@@ -88,10 +88,7 @@ def render_typhoon_linked_outputs(
     expand_key = f"_llm_report_expand_next_{key_prefix}"
     _llm_expand = bool(st.session_state.pop(expand_key, False))
 
-    cap = (
-        "基于当前联动结果 JSON 调用百炼部署模型；密钥与模型名从环境变量读取，勿写入代码。"
-        + (" " + llm_caption_extra if llm_caption_extra else "")
-    )
+    cap = "可选：环境变量配置 DashScope。" + (" " + llm_caption_extra.strip() if llm_caption_extra else "")
     with st.expander("智能解读报告（大模型 · 可选）", expanded=_llm_expand):
         st.caption(cap)
         model_override = st.text_input(

@@ -7,6 +7,7 @@ from typing import Any
 
 import numpy as np
 
+from src.hydro.physical_scale import stats_vectors_usable
 from src.preprocess.hydro_nc_stack import (
     apply_zscore,
     build_windows,
@@ -122,22 +123,36 @@ def build_hydro_xy_from_netcdf_paths(
         meta["windows_truncated_to"] = int(max_windows)
 
     sp = resolve_path(stats_npz_path) if stats_npz_path else resolve_path("data/processed/stats/hydro_zscore.npz")
+    mean: np.ndarray
+    std: np.ndarray
+    used_global = False
     if sp.is_file():
         z = np.load(sp)
-        mean, std = z["mean"], z["std"]
-        apply_zscore(x, mean, std)
-        apply_zscore(y, mean, std)
-        meta["normalize"] = "hydro_zscore_stats"
-        meta["stats_npz"] = str(sp)
-    else:
+        mean_g, std_g = z["mean"], z["std"]
+        if stats_vectors_usable(mean_g, std_g, n_channels=len(feats)):
+            mean, std = mean_g, std_g
+            apply_zscore(x, mean, std)
+            apply_zscore(y, mean, std)
+            meta["normalize"] = "hydro_zscore_stats"
+            meta["stats_npz"] = str(sp)
+            used_global = True
+        else:
+            meta["stats_npz_rejected"] = f"{sp} 内 mean/std 非有限，已改用本次滑窗统计量"
+    if not used_global:
         mean, std = zscore_fit(x)
         apply_zscore(x, mean, std)
         apply_zscore(y, mean, std)
-        meta["normalize"] = "per_upload_fit"
-        meta["normalize_note"] = (
-            "未找到 data/processed/stats/hydro_zscore.npz，已用本次上传滑窗估计 mean/std，"
-            "与离线训练全局统计不一致时 NRMSE 仅作演示参考。"
-        )
+        if not sp.is_file():
+            meta["normalize"] = "per_upload_fit"
+            meta["normalize_note"] = (
+                "未找到 data/processed/stats/hydro_zscore.npz，已用本次上传滑窗估计 mean/std，"
+                "与离线训练全局统计不一致时 NRMSE 仅作演示参考。"
+            )
+        else:
+            meta["normalize"] = "per_upload_fit"
+    meta["zscore_mean_1d"] = np.asarray(mean).reshape(-1).tolist()
+    meta["zscore_std_1d"] = np.asarray(std).reshape(-1).tolist()
+    meta["zscore_features"] = list(feats)
 
     meta["n_windows"] = int(x.shape[0])
     meta["input_steps"] = tin

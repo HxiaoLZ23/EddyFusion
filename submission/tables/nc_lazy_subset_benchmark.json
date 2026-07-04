@@ -1,0 +1,122 @@
+[
+  {
+    "file": "0129943eb490_2f1fc15e.nc",
+    "size_mb": 3.36,
+    "op": "probe_nc_meta_lazy",
+    "elapsed_s": 4.2515,
+    "peak_mb": 41.62,
+    "time_len": 48,
+    "dims": {
+      "time": 48,
+      "lat": 64,
+      "lon": 64
+    }
+  },
+  {
+    "file": "0129943eb490_2f1fc15e.nc",
+    "size_mb": 3.36,
+    "op": "subset_netcdf_lazy",
+    "elapsed_s": 1.024,
+    "peak_mb": 1.48,
+    "out_nc": "app/data/nc_uploads/subsets/subset_58d023eb74_a04cd763.nc",
+    "out_size_mb": 0.9426,
+    "out_dims": {
+      "time": 13,
+      "lat": 64,
+      "lon": 64
+    }
+  },
+  {
+    "file": "0129943eb490_2f1fc15e.nc",
+    "size_mb": 3.36,
+    "op": "materialize_all_vars",
+    "elapsed_s": 0.9429,
+    "peak_mb": 5.29,
+    "array_bytes_mb": 4.5,
+    "n_vars": 6
+  },
+  {
+    "file": "013bcf50fb58_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "probe_nc_meta_lazy",
+    "elapsed_s": 2.2576,
+    "peak_mb": 0.22,
+    "time_len": 300,
+    "dims": {
+      "time": 300,
+      "lat": 138,
+      "lon": 125,
+      "time_eddy": 300,
+      "latitude_eddy": 160,
+      "longitude_eddy": 320
+    }
+  },
+  {
+    "file": "013bcf50fb58_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "subset_netcdf_lazy",
+    "elapsed_s": 14.6891,
+    "peak_mb": 518.9,
+    "out_nc": "app/data/nc_uploads/subsets/subset_73f3a407a6_2461aff2.nc",
+    "out_size_mb": 311.1677,
+    "out_dims": {
+      "time": 76,
+      "lat": 138,
+      "lon": 125,
+      "time_eddy": 300,
+      "latitude_eddy": 160,
+      "longitude_eddy": 320
+    }
+  },
+  {
+    "file": "013bcf50fb58_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "materialize_all_vars",
+    "elapsed_s": 4.472,
+    "peak_mb": 666.25,
+    "array_bytes_mb": 548.97,
+    "n_vars": 10
+  },
+  {
+    "file": "02799708b3ab_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "probe_nc_meta_lazy",
+    "elapsed_s": 2.06,
+    "peak_mb": 0.21,
+    "time_len": 300,
+    "dims": {
+      "time": 300,
+      "lat": 138,
+      "lon": 125,
+      "time_eddy": 300,
+      "latitude_eddy": 160,
+      "longitude_eddy": 320
+    }
+  },
+  {
+    "file": "02799708b3ab_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "subset_netcdf_lazy",
+    "elapsed_s": 14.2065,
+    "peak_mb": 518.9,
+    "out_nc": "app/data/nc_uploads/subsets/subset_09a78253f1_ffa06fc6.nc",
+    "out_size_mb": 311.1677,
+    "out_dims": {
+      "time": 76,
+      "lat": 138,
+      "lon": 125,
+      "time_eddy": 300,
+      "latitude_eddy": 160,
+      "longitude_eddy": 320
+    }
+  },
+  {
+    "file": "02799708b3ab_ad35dea2.nc",
+    "size_mb": 384.08,
+    "op": "materialize_all_vars",
+    "elapsed_s": 4.3858,
+    "peak_mb": 666.25,
+    "array_bytes_mb": 548.97,
+    "n_vars": 10
+  }
+]

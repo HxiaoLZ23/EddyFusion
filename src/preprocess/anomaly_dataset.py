@@ -95,10 +95,13 @@ def _pick_dataarray(ds: Any, candidates: list[str], *, required: bool = True) ->
 
 
 def _to_time_series_1d(arr: np.ndarray) -> np.ndarray:
-    arr = np.asarray(arr, dtype=np.float32)
+    """时间维保留，其余维 nanmean（格点常有海陆掩膜，普通 mean 会得到全 NaN）。"""
+    arr = np.asarray(arr, dtype=np.float64)
     if arr.ndim == 1:
-        return arr
-    return arr.reshape(arr.shape[0], -1).mean(axis=1).astype(np.float32)
+        return arr.astype(np.float32)
+    flat = arr.reshape(arr.shape[0], -1)
+    out = np.nanmean(flat, axis=1)
+    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
 
 
 def _extract_wind_wave_series(nc_path: Path) -> tuple[np.ndarray, dict[str, int]]:
@@ -162,6 +165,159 @@ def _extract_wind_wave_series(nc_path: Path) -> tuple[np.ndarray, dict[str, int]
 def extract_wind_wave_series_from_netcdf(nc_path: str | Path) -> tuple[np.ndarray, dict[str, int]]:
     """从 NetCDF 提取 (T,2) 时序：[风速模长, 浪高]；变量约定与 `_extract_wind_wave_series` 一致。"""
     return _extract_wind_wave_series(Path(nc_path))
+
+
+def _spatial_mean_ts(da: Any) -> np.ndarray:
+    """时间维保留，其余维 nanmean（命题方风浪格点常有海陆掩膜）。"""
+    arr = np.asarray(da.values, dtype=np.float64)
+    if arr.ndim == 1:
+        return arr.astype(np.float32)
+    t = arr.shape[0]
+    flat = arr.reshape(t, -1)
+    out = np.nanmean(flat, axis=1)
+    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+
+
+def extract_wind_wave_from_month_dir(month_dir: str | Path) -> tuple[np.ndarray, dict[str, int]]:
+    """
+    「风-浪异常识别」按月目录：通常含
+    `data_stream-oper_stepType-instant.nc`（u10/v10）与
+    `data_stream-wave_stepType-instant.nc`（swh）。
+    返回对齐后的 (T,2)：[|U10|, SWH]。
+    """
+    md = Path(month_dir)
+    if not md.is_dir():
+        raise FileNotFoundError(f"月份目录不存在: {md}")
+
+    oper_candidates = sorted(md.glob("*oper*.nc"))
+    wave_candidates = sorted(md.glob("*wave*.nc"))
+    if not oper_candidates and not wave_candidates:
+        raise FileNotFoundError(f"未找到 oper/wave NC: {md}")
+
+    wind = np.empty((0,), dtype=np.float32)
+    wave = np.empty((0,), dtype=np.float32)
+    meta: dict[str, int] = {"has_wind": 0, "has_wave": 0, "used_wave_fallback": 0}
+
+    if oper_candidates:
+        ds, tmp = open_netcdf_dataset(oper_candidates[0])
+        try:
+            u_da = _pick_dataarray(ds, ["u10", "U10", "10u", "uwnd", "u_wind"], required=False)
+            v_da = _pick_dataarray(ds, ["v10", "V10", "10v", "vwnd", "v_wind"], required=False)
+            if u_da is not None and v_da is not None:
+                u = _spatial_mean_ts(u_da)
+                v = _spatial_mean_ts(v_da)
+                wind = np.sqrt(u.astype(np.float64) ** 2 + v.astype(np.float64) ** 2).astype(np.float32)
+                meta["has_wind"] = 1
+        finally:
+            ds.close()
+            if tmp is not None:
+                try:
+                    tmp.unlink(missing_ok=True)  # type: ignore[arg-type]
+                except OSError:
+                    pass
+
+    if wave_candidates:
+        ds, tmp = open_netcdf_dataset(wave_candidates[0])
+        try:
+            swh_da = _pick_dataarray(
+                ds, ["swh", "SWH", "hs", "wave_height", "significant_wave_height"], required=False
+            )
+            if swh_da is not None:
+                wave = _spatial_mean_ts(swh_da)
+                meta["has_wave"] = 1
+        finally:
+            ds.close()
+            if tmp is not None:
+                try:
+                    tmp.unlink(missing_ok=True)  # type: ignore[arg-type]
+                except OSError:
+                    pass
+
+    if wind.size and wave.size:
+        t = min(len(wind), len(wave))
+        feat = np.stack([wind[:t], wave[:t]], axis=-1)
+    elif wind.size:
+        meta["used_wave_fallback"] = 1
+        feat = np.stack([wind, wind.copy()], axis=-1)
+    elif wave.size:
+        feat = np.stack([wave.copy(), wave], axis=-1)
+        meta["used_wave_fallback"] = 1
+    else:
+        raise KeyError(f"月份目录无可用风/浪变量: {md}")
+
+    meta["time_steps"] = int(feat.shape[0])
+    meta["month_dir"] = str(md)
+    return feat, meta
+
+
+def discover_anomaly_month_dirs(
+    raw_root: Path,
+    subdir: str,
+    *,
+    years: set[int] | None = None,
+    year_min: int | None = None,
+    year_max: int | None = None,
+) -> list[Path]:
+    """命题方目录：风浪异常识别/{年}/{月}/ 下 oper+wave 配对。"""
+    root = raw_root / subdir
+    if not root.is_dir():
+        raise FileNotFoundError(f"风浪目录不存在: {root}")
+    out: list[Path] = []
+    for year_dir in sorted(root.iterdir()):
+        if not year_dir.is_dir() or not year_dir.name.isdigit():
+            continue
+        y = int(year_dir.name)
+        if years is not None and y not in years:
+            continue
+        if year_min is not None and year_max is not None and not (year_min <= y <= year_max):
+            continue
+        for month_dir in sorted(year_dir.iterdir()):
+            if month_dir.is_dir():
+                out.append(month_dir)
+    return out
+
+
+def _concat_month_dirs(month_dirs: list[Path]) -> tuple[np.ndarray, dict[str, Any]]:
+    parts: list[np.ndarray] = []
+    meta: dict[str, Any] = {"months_used": 0, "months_skipped": 0}
+    for md in month_dirs:
+        try:
+            feat, _ = extract_wind_wave_from_month_dir(md)
+        except (FileNotFoundError, KeyError) as e:
+            print(f"警告: 跳过 {md.name}: {e}", file=sys.stderr)
+            meta["months_skipped"] = int(meta["months_skipped"]) + 1
+            continue
+        if feat.shape[0] > 0:
+            parts.append(feat)
+            meta["months_used"] = int(meta["months_used"]) + 1
+    if not parts:
+        return np.empty((0, 2), dtype=np.float32), meta
+    cat = np.concatenate(parts, axis=0)
+    meta["T"] = int(cat.shape[0])
+    return cat, meta
+
+
+def concat_wind_wave_year(raw_root: Path, subdir: str, year: int) -> tuple[np.ndarray, dict[str, Any]]:
+    """按年拼接各月 oper+wave 对齐序列（用于连续绘图/抽查）。"""
+    root = raw_root / subdir / str(year)
+    if not root.is_dir():
+        raise FileNotFoundError(f"年份目录不存在: {root}")
+    month_dirs = sorted([p for p in root.iterdir() if p.is_dir()], key=lambda p: p.name)
+    parts: list[np.ndarray] = []
+    used_months: list[str] = []
+    for md in month_dirs:
+        try:
+            feat, _ = extract_wind_wave_from_month_dir(md)
+        except (FileNotFoundError, KeyError) as e:
+            print(f"警告: 跳过 {md.name}: {e}", file=sys.stderr)
+            continue
+        if feat.shape[0] > 0:
+            parts.append(feat)
+            used_months.append(md.name)
+    if not parts:
+        return np.empty((0, 2), dtype=np.float32), {"year": year, "months": []}
+    cat = np.concatenate(parts, axis=0)
+    return cat, {"year": year, "months": used_months, "T": int(cat.shape[0])}
 
 
 def _build_windows(ts: np.ndarray, window_steps: int, horizon_steps: int, stride: int) -> tuple[np.ndarray, np.ndarray]:
@@ -290,12 +446,13 @@ def build_anomaly_from_netcdf(
         y_max = int(tr.get("max_year", 2023))
         val_years = set(int(x) for x in ysplit.get("val_years", [2025]))
         test_years = set(int(x) for x in ysplit.get("test_years", [2024]))
-        tr_files = discover_anomaly_nc_paths(raw_root, subdir, max_daily_files=max_daily_files, year_min=y_min, year_max=y_max)
-        va_files = discover_anomaly_nc_paths(raw_root, subdir, years=val_years)
-        te_files = discover_anomaly_nc_paths(raw_root, subdir, years=test_years)
+        meta["merge_mode"] = "month_oper_wave"
+        tr_months = discover_anomaly_month_dirs(raw_root, subdir, year_min=y_min, year_max=y_max)
+        va_months = discover_anomaly_month_dirs(raw_root, subdir, years=val_years)
+        te_months = discover_anomaly_month_dirs(raw_root, subdir, years=test_years)
         print(
-            f"风浪年份划分: train {y_min}-{y_max}={len(tr_files)} 文件, "
-            f"val {sorted(val_years)}={len(va_files)}, test {sorted(test_years)}={len(te_files)}",
+            f"风浪年份划分（按月 oper+wave 合并）: train {y_min}-{y_max}={len(tr_months)} 月, "
+            f"val {sorted(val_years)}={len(va_months)} 月, test {sorted(test_years)}={len(te_months)} 月",
             flush=True,
         )
         caps = {
@@ -303,27 +460,32 @@ def build_anomaly_from_netcdf(
             "val": pre.get("max_val_daily_files"),
             "test": pre.get("max_test_daily_files"),
         }
-        split_files = {"train": tr_files, "val": va_files, "test": te_files}
+        split_months = {"train": tr_months, "val": va_months, "test": te_months}
         for split in ("train", "val", "test"):
             cap = caps[split]
-            if cap is not None and int(cap) > 0 and len(split_files[split]) > int(cap):
-                print(f"按 anomaly_preprocess.max_{split}_daily_files={cap} 截断 {split} 文件", flush=True)
-                split_files[split] = split_files[split][: int(cap)]
+            if cap is not None and int(cap) > 0 and len(split_months[split]) > int(cap):
+                print(f"按 max_{split}_daily_files 截断为前 {cap} 个月目录", flush=True)
+                split_months[split] = split_months[split][: int(cap)]
 
         key_map = {"train": "train_sequences", "val": "val_sequences", "test": "test_sequences"}
         for split in ("train", "val", "test"):
-            files = split_files[split]
-            if not files:
-                print(f"警告: {split} 无文件，跳过", file=sys.stderr)
+            months = split_months[split]
+            if not months:
+                print(f"警告: {split} 无月份目录，跳过", file=sys.stderr)
                 continue
-            series, m = _concat_series(files)
+            series, m = _concat_month_dirs(months)
+            if series.shape[0] < window_steps + horizon_steps:
+                print(f"警告: {split} 序列过短 T={series.shape[0]}，跳过", file=sys.stderr)
+                continue
             x, y = _build_windows(series, window_steps, horizon_steps, stride)
             _save_split(paths[key_map[split]], x, y)
-            meta[f"{split}_files_used"] = int(m["files_used"])
-            meta[f"{split}_files_skipped"] = int(m.get("files_skipped", 0))
-            meta[f"{split}_non_finite_replaced"] = int(m["non_finite_replaced"])
-            meta[f"{split}_used_wave_fallback"] = int(m.get("used_wave_fallback", 0))
+            meta[f"{split}_months_used"] = int(m.get("months_used", 0))
+            meta[f"{split}_months_skipped"] = int(m.get("months_skipped", 0))
             meta[f"{split}_samples"] = int(x.shape[0])
+            meta[f"{split}_T"] = int(m.get("T", 0))
+            wy = float(y[:, 1].max()) if y.shape[0] else 0.0
+            if wy <= 1e-6:
+                print(f"警告: {split} 标签波高全为 0，请检查月份目录是否含 wave NC", file=sys.stderr)
     else:
         all_files = discover_anomaly_nc_paths(raw_root, subdir, max_daily_files=max_daily_files)
         series, m = _concat_series(all_files)

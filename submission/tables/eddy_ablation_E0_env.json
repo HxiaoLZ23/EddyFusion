@@ -1,0 +1,14 @@
+{
+  "dataset_3ch": "AutoDL/dataset/eddy/dataset.yaml",
+  "counts_3ch": {"train_images": 1566, "val_images": 53, "val_labels": 53},
+  "dataset_7ch": "AutoDL/dataset/eddy_enh7/dataset.yaml",
+  "counts_7ch": {"val_images": 106},
+  "note_7ch_val": "eddy_enh7 val 为 106 帧，与 3ch fair 53 不一致；E2/E5 以 eddy 53 帧 stem 对齐子集为准",
+  "nc_root_exists": true,
+  "weights": {
+    "outputs/eddy_cloud_fair/last.pt": true,
+    "outputs/eddy_cloud_fair/best.pt": false,
+    "outputs/eddy_enh7_cloud_fair/best.pt": true
+  },
+  "check_eddy_ready": "FAIL（可能 yolov8n-seg.pt 校验；不影响已有 ckpt 推理）"
+}

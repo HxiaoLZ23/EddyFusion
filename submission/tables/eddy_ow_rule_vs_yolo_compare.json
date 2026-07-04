@@ -1,0 +1,145 @@
+{
+  "dataset_root": "F:\\创赛\\AutoDL\\dataset\\eddy",
+  "nc_root": "F:\\创赛\\服创数据集\\中尺度涡识别",
+  "ckpt": "F:\\创赛\\outputs\\eddy_cloud_fair\\last.pt",
+  "splits": [
+    "val",
+    "test"
+  ],
+  "conf": 0.25,
+  "n_samples": 106,
+  "by_split_method": {
+    "val_ow_rule": {
+      "n_images": 53,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "mean_iou_matched": 1.0,
+      "small_recall_mean": 1.0,
+      "small_recall_images": 53,
+      "boundary_roughness_mean": 5.561233081045567,
+      "boundary_grad_mean": 0.07522081431061302,
+      "merge_errors_total": 0.0,
+      "split_errors_total": 0.0,
+      "merge_errors_per_image": 0.0,
+      "split_errors_per_image": 0.0,
+      "ow_inst_count_std_mean": 2.716158424967179,
+      "ow_area_frac_std_mean": 0.008120903525095044
+    },
+    "val_yolo": {
+      "n_images": 53,
+      "precision": 0.8830275229357798,
+      "recall": 0.6924460431654677,
+      "f1": 0.7762096774193549,
+      "mean_iou_matched": 0.7630644859253332,
+      "small_recall_mean": 0.3380503144654088,
+      "small_recall_images": 53,
+      "boundary_roughness_mean": 5.292246877114882,
+      "boundary_grad_mean": 0.0783117383513379,
+      "merge_errors_total": 0.0,
+      "split_errors_total": 17.0,
+      "merge_errors_per_image": 0.0,
+      "split_errors_per_image": 0.32075471698113206,
+      "ow_inst_count_std_mean": 0.0,
+      "ow_area_frac_std_mean": 0.0
+    },
+    "val_yolo_vs_ow": {
+      "n_images": 53,
+      "precision": 0.8830275229357798,
+      "recall": 0.6924460431654677,
+      "f1": 0.7762096774193549,
+      "mean_iou_matched": 0.7630644859253332,
+      "small_recall_mean": 0.0,
+      "small_recall_images": 0,
+      "boundary_roughness_mean": 0.0,
+      "boundary_grad_mean": 0.0,
+      "merge_errors_total": 0.0,
+      "split_errors_total": 0.0,
+      "merge_errors_per_image": 0.0,
+      "split_errors_per_image": 0.0,
+      "ow_inst_count_std_mean": 0.0,
+      "ow_area_frac_std_mean": 0.0
+    },
+    "test_ow_rule": {
+      "n_images": 53,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "mean_iou_matched": 1.0,
+      "small_recall_mean": 1.0,
+      "small_recall_images": 53,
+      "boundary_roughness_mean": 5.5651265448288685,
+      "boundary_grad_mean": 0.0733576146452536,
+      "merge_errors_total": 0.0,
+      "split_errors_total": 0.0,
+      "merge_errors_per_image": 0.0,
+      "split_errors_per_image": 0.0,
+      "ow_inst_count_std_mean": 2.9769587288933583,
+      "ow_area_frac_std_mean": 0.008473693994092965
+    },
+    "test_yolo": {
+      "n_images": 53,
+      "precision": 0.8520084566596194,
+      "recall": 0.7070175438596491,
+      "f1": 0.7727708533077661,
+      "mean_iou_matched": 0.7624070393596907,
+      "small_recall_mean": 0.42044025157232706,
+      "small_recall_images": 53,
+      "boundary_roughness_mean": 5.356856928078746,
+      "boundary_grad_mean": 0.0751323231803758,
+      "merge_errors_total": 3.0,
+      "split_errors_total": 25.0,
+      "merge_errors_per_image": 0.05660377358490566,
+      "split_errors_per_image": 0.4716981132075472,
+      "ow_inst_count_std_mean": 0.0,
+      "ow_area_frac_std_mean": 0.0
+    },
+    "test_yolo_vs_ow": {
+      "n_images": 53,
+      "precision": 0.8520084566596194,
+      "recall": 0.7070175438596491,
+      "f1": 0.7727708533077661,
+      "mean_iou_matched": 0.7624070393596907,
+      "small_recall_mean": 0.0,
+      "small_recall_images": 0,
+      "boundary_roughness_mean": 0.0,
+      "boundary_grad_mean": 0.0,
+      "merge_errors_total": 0.0,
+      "split_errors_total": 0.0,
+      "merge_errors_per_image": 0.0,
+      "split_errors_per_image": 0.0,
+      "ow_inst_count_std_mean": 0.0,
+      "ow_area_frac_std_mean": 0.0
+    }
+  },
+  "temporal": {
+    "val_ow_rule": {
+      "temporal_union_iou_mean": 0.2727315895175072,
+      "temporal_inst_delta_mean": 1.8846153846153846,
+      "n_temporal_pairs": 52.0
+    },
+    "val_yolo": {
+      "temporal_union_iou_mean": 0.29614821463113755,
+      "temporal_inst_delta_mean": 2.0,
+      "n_temporal_pairs": 52.0
+    },
+    "test_ow_rule": {
+      "temporal_union_iou_mean": 0.2531099184687349,
+      "temporal_inst_delta_mean": 1.8846153846153846,
+      "n_temporal_pairs": 52.0
+    },
+    "test_yolo": {
+      "temporal_union_iou_mean": 0.27677947098275013,
+      "temporal_inst_delta_mean": 2.5961538461538463,
+      "n_temporal_pairs": 52.0
+    }
+  },
+  "timing": {
+    "ow_ms_per_frame": 43.14584245346267,
+    "yolo_ms_per_frame": 46.72735188576999,
+    "yolo_device": "cuda:0"
+  },
+  "narrative": "**核心结论**：推理期直接执行 OW→投票→连通域 可 **100% 复现** 伪标签（P/R=1.0）；YOLO 93% mAP 表征的是对 OW 规则的 **可部署近似/蒸馏**，而非在伪标签口径上超越 OW。\n**val** YOLO vs OW 直接输出：P/R=0.883/0.692，matched mIoU=0.763。\n  边界粗糙度 YOLO 降低 0.27（4.8%）\n  时序 union IoU：OW=0.273 → YOLO=0.296。\n  OW 超参扰动下实例数 std≈2.72/图；YOLO 推理 **不依赖** OW 阈值链。\n**test** YOLO vs OW 直接输出：P/R=0.852/0.707，matched mIoU=0.762。\n  边界粗糙度 YOLO 降低 0.21（3.7%）\n  时序 union IoU：OW=0.253 → YOLO=0.277。\n  OW 超参扰动下实例数 std≈2.98/图；YOLO 推理 **不依赖** OW 阈值链。\n**答辩建议**：承认「可直接跑 OW」；强调 YOLO 的价值是 **规则蒸馏 + 工程统一部署**（RGB/GPU 流水线、与前端一致），以及边界平滑/时序略优；过分割可通过 conf 调参缓解。若需证明超越 OW，须引入 **独立人工样例** 或 **输入扰动鲁棒性** 实验。",
+  "csv_path": "F:\\创赛\\submission\\tables\\eddy_ow_rule_vs_yolo_compare.csv",
+  "json_path": "F:\\创赛\\submission\\tables\\eddy_ow_rule_vs_yolo_compare.json"
+}

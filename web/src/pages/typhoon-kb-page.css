@@ -1,0 +1,247 @@
+.typhoon-kb-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.typhoon-kb-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.typhoon-kb-page__back {
+  display: inline-block;
+  font-size: 13px;
+  color: #0369a1;
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+
+.typhoon-kb-page__back:hover {
+  text-decoration: underline;
+}
+
+.typhoon-kb-page__title {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.typhoon-kb-page__caption {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+  max-width: 720px;
+}
+
+.typhoon-kb-page__status-pill {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #a7f3d0;
+}
+
+.typhoon-kb-page__tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.typhoon-kb-page__tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.typhoon-kb-page__tab--active {
+  background: #0369a1;
+  color: #fff;
+  border-color: #0369a1;
+}
+
+.typhoon-kb-page__section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.typhoon-kb-page__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.typhoon-kb-page__form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.typhoon-kb-page__form-grid input {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.typhoon-kb-page__span2 {
+  grid-column: 1 / -1;
+}
+
+.typhoon-kb-page__primary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: #0369a1;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.typhoon-kb-page__primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.typhoon-kb-page__secondary {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.typhoon-kb-page__err {
+  color: #b91c1c;
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+
+.typhoon-kb-page__muted {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.typhoon-kb-page__result-count {
+  margin: 14px 0 8px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.typhoon-kb-page__table-wrap {
+  overflow: auto;
+  max-height: 420px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.typhoon-kb-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.typhoon-kb-page__table th,
+.typhoon-kb-page__table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.typhoon-kb-page__table th {
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.typhoon-kb-page__time {
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.typhoon-kb-page__browse-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+
+.typhoon-kb-page__browse-filters input {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.typhoon-kb-page__row--sel {
+  background: #e0f2fe;
+}
+
+.typhoon-kb-page__pager {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.typhoon-kb-page__detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.typhoon-kb-page__detail h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.typhoon-kb-page__detail ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.typhoon-kb-page__case-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.typhoon-kb-page__case {
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.typhoon-kb-page__case h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .typhoon-kb-page__form-grid {
+    grid-template-columns: 1fr;
+  }
+}

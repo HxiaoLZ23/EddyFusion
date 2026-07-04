@@ -20,6 +20,11 @@ export type HeatmapResponse = {
   kind: string;
   lead_time_index: number;
   crs: string;
+  value_scale?: "physical" | "normalized";
+  value_unit?: string;
+  vmin?: number;
+  vmax?: number;
+  feature_units?: Record<string, string>;
   warnings: string[];
   feature_names: string[];
   curve_data: Record<string, { horizon: number; gt: number; pred: number }[]>;

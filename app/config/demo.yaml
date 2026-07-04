@@ -19,13 +19,27 @@ llm_report:
   max_tokens: 2048
 
 typhoon_link:
-  # 结果页/实时联动：默认回看时间窗（小时）。2160≈90 天；更大可试 4320≈180 天、8760≈365 天
-  default_window_hours: 8760
+  # 历史案例检索时间范围（形态 DTW，与当前 NC 异常时段解耦）
+  # full=按海区筛全库；lookback=从 NC 末时刻向前回溯 history_lookback_years（至少 5 年）
+  history_search_mode: full
+  history_lookback_years: 10
+  history_min_year: 1945
+  history_max_year: null
   # 初筛后 DTW 重排保留的候选数
   default_top_k: 10
+  # DTW：异常窗内区域平均观测风速 ↔ IBTrACS 中心风速（legacy: wind_residual_vs_ibtracs_track）
+  dtw_match_mode: regional_mean_obs_vs_ibtracs_center
+  dtw_window_tau: 1.5
+  dtw_window_min_len: 2
+  dtw_window_gap_merge: 1
+  dtw_window_pad: 4
+  dtw_window_fallback_peak_half_width: 5
   # 在 config/data.yaml 的 spatial 框基础上向外扩（度），提高与台风轨迹 bbox 相交概率
   query_lon_pad_deg: 3.0
   query_lat_pad_deg: 3.0
+  # 初筛排序（仅决定 Top-(3K) 池内顺序；最终 Top-K 由 DTW 重排）
+  # bbox_ratio=查询框被轨迹外包框覆盖比例；center_distance=1/查询框中心到台风轨迹中心距离(度)
+  prescreen_score_mode: bbox_ratio
   # 台风事件索引（全库可来自 IBTrACS：scripts/download_typhoon_data.py + scripts/build_typhoon_kb.py）
   events_json_path: "data/processed/anomaly/typhoon_kb/events.json"
   # 预置演示案例路径（由 scripts/demo_typhoon_kb_cases.py 生成）

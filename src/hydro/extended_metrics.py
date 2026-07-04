@@ -47,6 +47,24 @@ def evaluate_extended_on_loader(
     sum_py = torch.zeros(c_out, dtype=torch.float64, device="cpu")
     sum_abs_y = torch.zeros(c_out, dtype=torch.float64, device="cpu")
 
+    use_physical = mean_1d is not None and std_1d is not None
+    mu_phys: torch.Tensor | None = None
+    sd_phys: torch.Tensor | None = None
+    sse_phys: torch.Tensor | None = None
+    sae_phys: torch.Tensor | None = None
+    sum_abs_y_phys: torch.Tensor | None = None
+    if use_physical:
+        mu = np.asarray(mean_1d, dtype=np.float64).reshape(-1)
+        sd = np.asarray(std_1d, dtype=np.float64).reshape(-1)
+        if mu.shape[0] == c_out == sd.shape[0]:
+            mu_phys = torch.from_numpy(mu).view(1, 1, 1, 1, c_out)
+            sd_phys = torch.from_numpy(sd).view(1, 1, 1, 1, c_out)
+            sse_phys = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+            sae_phys = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+            sum_abs_y_phys = torch.zeros(c_out, dtype=torch.float64, device="cpu")
+        else:
+            use_physical = False
+
     eps = 1e-12
     n_batch = 0
     model.eval()
@@ -77,6 +95,14 @@ def evaluate_extended_on_loader(
         sum_py += (pn * yn).reshape(-1, c_out).sum(dim=0).cpu()
         sum_abs_y += yn.abs().reshape(-1, c_out).sum(dim=0).cpu()
         n_total += float(pn.reshape(-1, c_out).shape[0])
+
+        if use_physical and mu_phys is not None and sd_phys is not None and sse_phys is not None:
+            pn_p = pn * sd_phys + mu_phys
+            yn_p = yn * sd_phys + mu_phys
+            diff_p = pn_p - yn_p
+            sse_phys += (diff_p**2).reshape(-1, c_out).sum(dim=0).cpu()
+            sae_phys += diff_p.abs().reshape(-1, c_out).sum(dim=0).cpu()
+            sum_abs_y_phys += yn_p.abs().reshape(-1, c_out).sum(dim=0).cpu()
 
         n_batch += 1
         if max_batches is not None and n_batch >= int(max_batches):
@@ -141,7 +167,35 @@ def evaluate_extended_on_loader(
             out["rmse_physical_scale"] = {
                 feature_names[i]: float(np.sqrt(mse_m_np[i]) * sd[i]) for i in range(c_out)
             }
-            out["note_physical_scale"] = "rmse_physical ≈ RMSE(norm) * std[channel]（假定目标与预报同一 z-score 统计量）"
+            out["note_rmse_physical_scale"] = (
+                "RMSE(norm)×std；与下方 rmse_physical 在 z-score 仿射下对误差等价，"
+                "但 NRMSE 分母须用反标准化后的 mean(|y|)。"
+            )
+
+    if use_physical and sse_phys is not None and sae_phys is not None and sum_abs_y_phys is not None:
+        mse_phys_np = (sse_phys / nt).numpy()
+        mean_abs_y_phys = (sum_abs_y_phys / nt).numpy()
+        rmse_phys = {
+            feature_names[i]: float(np.sqrt(mse_phys_np[i])) for i in range(c_out)
+        }
+        nrmse_phys = {
+            feature_names[i]: float(np.sqrt(mse_phys_np[i]) / max(float(mean_abs_y_phys[i]), eps))
+            for i in range(c_out)
+        }
+        mae_phys = {feature_names[i]: float((sae_phys[i] / nt).item()) for i in range(c_out)}
+        out["rmse_physical_per_feature"] = rmse_phys
+        out["nrmse_physical_per_feature"] = nrmse_phys
+        out["mae_physical_per_feature"] = mae_phys
+        out["mean_abs_y_physical_per_feature"] = {
+            feature_names[i]: float(mean_abs_y_phys[i]) for i in range(c_out)
+        }
+        out["note_nrmse_physical"] = (
+            "pred_phys = pred_z*std+mean，y_phys 同理；NRMSE_phys = RMSE_phys/mean(|y_phys|)，"
+            "与 eval.py 的 NRMSE 结构一致，分母在物理量纲（°C、PSU、m/s）。"
+        )
+        out["rmse_physical_avg"] = float(np.mean([rmse_phys[f] for f in feature_names]))
+        out["nrmse_physical_avg"] = float(np.mean([nrmse_phys[f] for f in feature_names]))
+        out["mae_physical_avg"] = float(np.mean([mae_phys[f] for f in feature_names]))
 
     out["rmse_avg"] = float(np.mean([rmse[f] for f in feature_names]))
     out["mae_avg"] = float(np.mean([mae[f] for f in feature_names]))

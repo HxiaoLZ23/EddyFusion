@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { postWindwaveOfflineReport } from "../adapters/windwaveReportAdapter";
+import { postWindwaveOfflineReport, type WindWaveSeriesPoint } from "../adapters/windwaveReportAdapter";
+import { type OceanMode, useOceanSession } from "./offlineSession";
 
 type Props = {
+  mode: OceanMode;
   ncPath: string | null;
-  /** 离线：有路径后自动拉取规则报告 */
+  /** 有路径后自动拉取规则报告 */
   autoRun?: boolean;
 };
 
@@ -19,14 +21,65 @@ function LevelRow({ children }: { children: ReactNode }) {
   return <div className="ocean-dashboard__windwave-level-row">{children}</div>;
 }
 
+function scalePoints(values: number[], width: number, height: number, pad = 14): string {
+  if (values.length < 1) return "";
+  const finite = values.filter((v) => Number.isFinite(v));
+  const minV = Math.min(...finite);
+  const maxV = Math.max(...finite);
+  const span = Math.max(maxV - minV, 1e-6);
+  return values
+    .map((v, i) => {
+      const x = pad + (i / Math.max(values.length - 1, 1)) * (width - pad * 2);
+      const y = height - pad - ((v - minV) / span) * (height - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+export function WindWaveMiniChart({ series }: { series?: WindWaveSeriesPoint[] }) {
+  const data = (series ?? []).slice(0, 48);
+  if (data.length < 2) {
+    return <p className="ocean-dashboard__windwave-chart-empty">暂无风浪时序曲线，请先上传可解析的风浪 NetCDF。</p>;
+  }
+  const width = 520;
+  const height = 154;
+  const windObs = data.map((d) => Number(d.wind_observed));
+  const windPred = data.map((d) => Number(d.wind_predicted));
+  const waveObs = data.map((d) => Number(d.wave_observed));
+  const wavePred = data.map((d) => Number(d.wave_predicted));
+  return (
+    <div className="ocean-dashboard__windwave-chart">
+      <div className="ocean-dashboard__windwave-chart-head">
+        <strong>风速 / 浪高时序曲线</strong>
+        <span>观测值与平滑预测值对照</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="风浪时序曲线">
+        <rect x="0" y="0" width={width} height={height} rx="10" />
+        <polyline points={scalePoints(windObs, width, height)} className="wind-obs" />
+        <polyline points={scalePoints(windPred, width, height)} className="wind-pred" />
+        <polyline points={scalePoints(waveObs, width, height)} className="wave-obs" />
+        <polyline points={scalePoints(wavePred, width, height)} className="wave-pred" />
+      </svg>
+      <div className="ocean-dashboard__windwave-legend">
+        <span className="wind-obs">风速观测</span>
+        <span className="wind-pred">风速预测</span>
+        <span className="wave-obs">浪高观测</span>
+        <span className="wave-pred">浪高预测</span>
+      </div>
+    </div>
+  );
+}
+
 /** 风浪：离线自动 run_detect + 规则报告；异常等级单独一行在报告文本之上。 */
-export function WindWavePanel({ ncPath, autoRun = false }: Props) {
+export function WindWavePanel({ mode, ncPath, autoRun = false }: Props) {
+  const { setWindwave } = useOceanSession(mode);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
   const [level, setLevel] = useState<string | undefined>(undefined);
   const [index, setIndex] = useState<number | string | undefined>(undefined);
   const [note, setNote] = useState<string | null>(null);
+  const [series, setSeries] = useState<WindWaveSeriesPoint[]>([]);
 
   const load = useCallback(async (path: string) => {
     setErr(null);
@@ -35,19 +88,34 @@ export function WindWavePanel({ ncPath, autoRun = false }: Props) {
     setNote(null);
     try {
       const out = await postWindwaveOfflineReport(path);
+      const tn = typeof out.typhoon_link_note === "string" ? out.typhoon_link_note : null;
       setReport(out.report_text);
       setLevel(out.anomaly_level);
       setIndex(out.anomaly_index);
-      setNote(typeof out.typhoon_link_note === "string" ? out.typhoon_link_note : null);
+      setNote(tn);
+      setSeries(Array.isArray(out.wind_wave_series) ? out.wind_wave_series : []);
+      setWindwave({
+        reportText: out.report_text,
+        anomalyLevel: out.anomaly_level,
+        anomalyIndex: out.anomaly_index,
+        windWaveSeries: Array.isArray(out.wind_wave_series) ? out.wind_wave_series : [],
+        typhoonNote: tn,
+        typhoonCandidates: Array.isArray(out.typhoon_candidates) ? out.typhoon_candidates : [],
+        typhoonEventsPath: out.typhoon_events_path ?? null,
+        typhoonQuery: out.typhoon_query ?? null,
+        typhoonRetrieval: out.typhoon_retrieval ?? null,
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setReport(null);
       setLevel(undefined);
       setIndex(undefined);
+      setSeries([]);
+      setWindwave({ reportText: null });
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [setWindwave]);
 
   useEffect(() => {
     if (!autoRun || !ncPath?.trim()) {
@@ -56,6 +124,7 @@ export function WindWavePanel({ ncPath, autoRun = false }: Props) {
       setLevel(undefined);
       setIndex(undefined);
       setNote(null);
+      setSeries([]);
       return;
     }
     void load(ncPath);
@@ -123,6 +192,7 @@ export function WindWavePanel({ ncPath, autoRun = false }: Props) {
         {!busy && !err && report && (
           <>
             {note && <p className="ocean-dashboard__windwave-note">{note}</p>}
+            <WindWaveMiniChart series={series} />
             <pre className="ocean-dashboard__windwave-lines">{report}</pre>
           </>
         )}

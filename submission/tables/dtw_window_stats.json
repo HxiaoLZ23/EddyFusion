@@ -1,0 +1,14 @@
+{
+  "n_nc_sampled": 0,
+  "fallback_rate": null,
+  "median_window_len": 0,
+  "dtw_config": {
+    "dtw_match_mode": "regional_mean_obs_vs_ibtracs_center",
+    "dtw_window_tau": 1.5,
+    "dtw_window_min_len": 2,
+    "dtw_window_gap_merge": 1,
+    "dtw_window_pad": 4,
+    "dtw_window_fallback_peak_half_width": 5
+  },
+  "samples": []
+}

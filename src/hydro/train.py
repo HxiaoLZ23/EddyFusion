@@ -1,3 +1,22 @@
+"""
+水文（海域要素）ConvLSTM 训练入口。
+
+数据前提
+--------
+不直接读取 NetCDF。训练样本来自预处理 NPZ：
+  - 批量：``python -m src.preprocess.hydro_dataset``（或 ``scripts/run_preprocess.sh``）
+  - 在线滑窗：``src/preprocess/hydro_nc_infer_build.py``（仅推理用）
+  - 变量映射：``config/variable_map.yaml`` → ``hydro_nc_stack.stack_hydro_fields``
+  - 文档：``docs/架构与方法/NetCDF与三模块数据及训练说明.md`` §4
+
+配置
+----
+``config/hydro_hycom_l2.yaml``（或 ``hydro.yaml`` / ``hydro_synthetic.yaml``）中
+``paths.train_data`` / ``train_label`` 等为 ``data/processed/hydro/*.npz``。
+
+验证指标为各通道 NRMSE 均值（与线上一致）；``best.pt`` 按 val NRMSE 保存。
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -11,14 +30,16 @@ import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
+
 from src.hydro.dataset import HydroNpzDataset
-from src.hydro.model import build_model
 from src.hydro.losses import hydro_train_loss
+from src.hydro.model import build_model
 from src.hydro.visualize import save_hydro_example_plots
 from src.utils.config import load_yaml, pick_device, project_root, resolve_path
 
 
 def set_seed(seed: int) -> None:
+    """固定 Python / NumPy / PyTorch 随机性，便于复现。"""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -27,10 +48,10 @@ def set_seed(seed: int) -> None:
 
 
 def nrmse_batch(pred: torch.Tensor, y: torch.Tensor) -> float:
-    """pred, y: B T C H W — 各通道 RMSE/|y|均值 再平均。"""
+    """pred, y: (B, T, C, H, W)。各通道 RMSE / |y| 均值，再对通道取平均。"""
     with torch.no_grad():
         err = pred - y
-        rmse = torch.sqrt((err**2).mean(dim=(0, 2, 3, 4)))  # per-channel over B,T,H,W
+        rmse = torch.sqrt((err**2).mean(dim=(0, 2, 3, 4)))
         denom = y.abs().mean(dim=(0, 2, 3, 4)).clamp(min=1e-6)
         per_ch = (rmse / denom).mean()
         return float(per_ch.item())
@@ -47,7 +68,13 @@ def train_epoch(
     max_batches: int | None = None,
     cfg: dict | None = None,
 ) -> tuple[float, bool]:
-    """返回（平均 train 损失，可为 MSE+MAE/EOS）、是否至少一次 optimizer.step。"""
+    """
+    单 epoch 训练：前向、``hydro_train_loss``、梯度累积与可选 AMP。
+
+    返回
+    ----
+    (平均 batch 损失, 本 epoch 是否至少执行过一次 optimizer.step)
+    """
     model.train()
     total = 0.0
     n = 0
@@ -88,6 +115,7 @@ def train_epoch(
                 optimizer.step()
             stepped = True
             optimizer.zero_grad(set_to_none=True)
+    # 末尾不足 accum 步的梯度也要 step 一次
     if micro % accum != 0 and micro > 0:
         if scaler:
             if grad_clip > 0:
@@ -105,7 +133,13 @@ def train_epoch(
 
 
 @torch.no_grad()
-def validate(model: nn.Module, loader: DataLoader, device: torch.device, max_batches: int | None = None) -> float:
+def validate(
+    model: nn.Module,
+    loader: DataLoader,
+    device: torch.device,
+    max_batches: int | None = None,
+) -> float:
+    """验证集上逐 batch 计算 NRMSE，返回有限值的平均。"""
     model.eval()
     scores: list[float] = []
     for bi, (x, y) in enumerate(loader, start=1):
@@ -128,7 +162,7 @@ def validate(model: nn.Module, loader: DataLoader, device: torch.device, max_bat
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="水文训练")
+    parser = argparse.ArgumentParser(description="水文 ConvLSTM 训练（输入为 NPZ，非 NetCDF）")
     parser.add_argument(
         "--config",
         type=str,
@@ -154,7 +188,6 @@ def main() -> None:
     set_seed(int(cfg["meta"]["seed"]))
 
     paths = cfg["paths"]
-
     train_ds = HydroNpzDataset(paths["train_data"], paths["train_label"])
     val_ds = HydroNpzDataset(paths["val_data"], paths["val_label"])
     n_tr, n_va = len(train_ds), len(val_ds)
@@ -228,10 +261,9 @@ def main() -> None:
             max_batches=max_train_batches,
             cfg=cfg,
         )
-        run_val = (ep % val_every_epochs == 0)
+        run_val = ep % val_every_epochs == 0
         val_nrmse = validate(model, val_loader, device, max_batches=max_val_batches) if run_val else float("nan")
-        # GradScaler 在梯度为 inf/nan 时会跳过 optimizer.step()，但仍可能 stepped=True；
-        # 仅当训练损失有限时才推进 scheduler，避免「scheduler 先于 optimizer」类告警。
+        # 仅当本 epoch 确实 step 且 train_loss 有限时才推进 scheduler
         if stepped and math.isfinite(tr_loss):
             scheduler.step()
         elif ep == 1 and not stepped:
@@ -279,7 +311,6 @@ def main() -> None:
 
         if plot_every_epochs > 0 and ep % plot_every_epochs == 0:
             try:
-                # 复用已在内存中的 val_ds，避免周期性再 np.load 一份验证集导致 RAM 翻倍、次轮 OOM
                 plot_xy = None
                 if n_va > 0:
                     pidx = max(0, min(plot_sample_index, n_va - 1))

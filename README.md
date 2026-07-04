@@ -1,224 +1,118 @@
-# EddyFusion
+# EddyFusion — 海洋 AI 三模块系统
 
-**EddyFusion：面向涡旋—水文—风浪的海洋环境智能分析与预警平台**（赛题 A09）。本仓库为可运行代码与配置；**全局开发规范**见本地或团队共享的 `相关文件/AI_DEV_REQUIREMENTS.md`
+面向 A09 赛题的**涡旋检测 · 水文预测 · 风浪异常**一体化工程：算法训练/评估、FastAPI 推理服务、React 论文演示前端与 Streamlit 离线工作台。
+
+| 模块 | 方法概要 | 主要入口 |
+|------|----------|----------|
+| **涡旋** | OW 伪标签 → YOLOv8-seg（3ch/7ch 物理通道） | `src/eddy/`、`config/eddy*.yaml` |
+| **水文** | ConvLSTM 多步预测 + 物理尺度 NRMSE | `src/hydro/`、`config/hydro*.yaml` |
+| **风浪异常** | 共享 LSTM 双头一步预测 + 残差 3σ + DTW 弱关联 | `src/anomaly/` |
+
+---
 
 ## 环境
 
-- Python 3.9+（推荐 3.10；当前若使用 3.12 需自行确认与命题方环境一致）
-- PyTorch **≥2.5.1**（按 [pytorch.org](https://pytorch.org) 选择与 CUDA 匹配的 wheel；`pip` 默认常为 **CPU** 版，训练请按需改装 GPU 版）
-- Linux / WSL2 推荐用于训练与推理
-
-### 虚拟环境（仓库根目录执行）
-
-**Windows (PowerShell)**
+- **Python ≥ 3.10**，**PyTorch ≥ 2.5.1**（见 `requirements.txt`）
+- 可选：**Node.js 18+**（React 前端）、**CUDA**（训练/GPU 物理场）
+- 数据与权重**不入库**：本地放置于 `data/`、`outputs/`（见 `.gitignore`）
 
 ```powershell
+cd F:\创赛   # 或你的克隆路径
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -U pip
 pip install -r requirements.txt
 ```
 
-**Linux / macOS**
+---
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-```
+## 快速启动（论文演示系统）
 
-验证：
-
-```bash
-python -c "import torch; print(torch.__version__); print('cuda:', torch.cuda.is_available())"
-```
-
-命题方原始数据目录在 `config/data.yaml` 的 `paths.raw_root`（默认 **`服创数据集/`**），预处理脚本会递归扫描其下 `*.nc`。
-
-**Windows + 中文路径**：若资源管理器能打开 `.nc` 但 `netcdf_io` 报错，脚本已自动尝试短路径与临时英文副本；请在 **`F:\创赛`**（仓库根）下执行命令，或使用正斜杠：`--path 服创数据集/海域要素预测/1994/19940101.nc`。
-
-在仓库根目录执行 `python -m ...`（Windows / Linux 均如此）。
-
-### 云服务器（AutoDL 等）
-
-- 项目目录名：**EddyFusion**（注意大小写；Linux 下 `Eddyfusion` 与 `EddyFusion` 为不同路径）
-- 典型克隆/工作路径：`~/autodl-tmp/EddyFusion`（root 用户下为 `/root/autodl-tmp/EddyFusion`）
-- 下文与脚本中的「仓库根」在云服务器上即指上述路径。
-
-**路径契约**：`config`、`dataset.yaml` 与脚本应使用 **相对仓库根** 的路径（或由 `resolve_path()` 解析），**勿**把某台机器上的 **`/root/...` / 盘符** 写进提交代码的默认值。
-
-**产物放在哪一栏**：云上真实保存位置以 **`Results saved to ...`**（Ultralytics 训练结束时会打）为准。例如 **`config/eddy_enh.yaml`** 下若 `paths.output_dir: AutoDL/outputs/eddy_enh`、`train.run_name: train`，在云机常为 **`/root/autodl-tmp/EddyFusion/AutoDL/outputs/eddy_enh/train`**。本地仓库里的 **`AutoDL/`** 若存在，多半是**手动拷贝/下载**的训练输出，用作离线查阅即可，**不要求**与本机推断的「应该多一层 / 少一层」严格对应。
-
-- **命题方数据位置二选一即可**（`config/data.yaml` 默认 `paths.raw_root: "服创数据集"`，相对仓库根解析）：
-  - **放在仓库内**：`~/autodl-tmp/EddyFusion/服创数据集/`（与 `config/` 同级），则**无需**运行 `setup_fuchuang_to_data.sh`，预处理会直接读该目录。
-  - **放在仓库外**（如 `~/autodl-tmp/服创数据集`，避免占满系统盘）：用 `scripts/setup_fuchuang_to_data.sh` 的 `FU_MODE=link` 在仓库根创建软链 `服创数据集` → 实际数据目录。
-
-### 全流程命令（云服务器 · 命题方 NetCDF → 水文训练）
-
-以下均在仓库根执行（如 `cd ~/autodl-tmp/EddyFusion`），且已创建并激活 `.venv`、`pip install -r requirements.txt`。
-
-**1. 放入命题方数据**  
-将「服创数据集」解压/上传，使目录结构为 **`服创数据集/海域要素预测/.../*.nc`**（或命题方提供的其它子目录名，与 `config/data.yaml` 的 `hydro_subdir` 一致）。
-
-- **方式 A（推荐简单）**：直接放在 **EddyFusion 仓库根下**，即  
-  `~/autodl-tmp/EddyFusion/服创数据集/`  
-  与 `config/`、`src/` 同级。完成后**跳过**下面步骤 2。
-
-- **方式 B**：放在仓库外，例如 `~/autodl-tmp/服创数据集`（其下含 `海域要素预测/`）。**勿在系统盘空间不足时再向 `/data` 全量复制**；然后执行步骤 2 做软链。
-
-**2. 接到项目（仅方式 B：零拷贝软链）**
-
-```bash
-export FU_MODE=link
-export FU_CHUANG_SRC="$HOME/autodl-tmp/服创数据集"
-bash scripts/setup_fuchuang_to_data.sh
-```
-
-完成后仓库根会出现 `服创数据集` → 指向 `$FU_CHUANG_SRC`，`config/data.yaml` 的 `paths.raw_root` 无需改。
-
-**3. 预处理（生成 `data/processed/hydro/*.npz`）**
-
-```bash
-# 试跑：少量日文件；滑窗步长勿长期用 1（会生成巨量窗口、内存可达百 GB 级似卡死），建议 12～24
-python -m src.preprocess.hydro_dataset \
-  --config config/hydro_hycom.yaml \
-  --from-nc --data-config config/data.yaml \
-  --max-daily-files 120 --stride 24
-
-# 全量：先在 config/data.yaml 将 hydro_preprocess.max_daily_files 设为 null，stride 仍建议 ≥12（全量 stride=1 内存极大）
-# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --stride 24
-
-# 按命题方年份划分训练/验证/测试时，先启用 data.yaml 的 hydro_year_split.enabled，再：
-# python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --year-split --stride 24
-```
-
-**4. 训练**
-
-```bash
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # 可选，缓解显存碎片
-python -m src.hydro.train --config config/hydro_hycom.yaml
-```
-
-**5. 评估**
-
-```bash
-python -m src.hydro.eval --config config/hydro_hycom.yaml --ckpt outputs/hydro/best.pt
-# 若训练过程出现 nan 未写出 best.pt，可改用: --ckpt outputs/hydro/last.pt
-```
-
-说明：单日日文件拼接后的总时间步须 ≥ `input_steps + output_steps`（见 `config/hydro_hycom.yaml`）；网格大时请用 GPU。
-
-**6. 水文创新隔离实验（L2/L1/L0）**
-
-```bash
-# 统一入口：独立输出目录，不覆盖当前稳定版
-bash scripts/run_hydro_isolated.sh l2
-bash scripts/run_hydro_isolated.sh l1
-bash scripts/run_hydro_isolated.sh l0
-```
-
-对应配置与产物目录：
-
-- `config/hydro_hycom_l2.yaml` -> `outputs/hydro_l2/`
-- `config/hydro_hycom_l1.yaml` -> `outputs/hydro_l1/`
-- `config/hydro_hycom_l0.yaml` -> `outputs/hydro_l0/`
-
-## 目录结构
-
-与《A09-项目开发文档》一致：`config/`、`data/`、`src/`、`scripts/`、`outputs/`、`docs/`、`submission/`。命题方原始数据可置于仓库根下 **`服创数据集/`**（默认不提交，见 `.gitignore`）。
-
-## 阶段一：无命题方数据时的烟测（合成 / 内置小集）
-
-| 模块 | 命令 |
-|------|------|
-| 水文 ConvLSTM | `python -m src.hydro.train --synthetic` → `python -m src.hydro.eval --config config/hydro_synthetic.yaml --ckpt outputs/hydro/best.pt` |
-| 风-浪 LSTM | `python -m src.anomaly.train --synthetic` → `python -m src.anomaly.eval` |
-| 涡旋 YOLO-seg | `python -m src.eddy.train --smoke`（使用 ultralytics 内置 `coco8-seg`，需联网下载） |
-| NetCDF 检查 | 将 `*.nc` 放入 `data/raw/` 后：`python -m src.preprocess.netcdf_io --config config/data.yaml` |
-
-全量数据就绪后：预处理 → 各模块 `train` / `eval`，详见 `scripts/*.sh`。
-
-### 命题方海域要素预测（HYCOM NetCDF → 水文 npz）
-
-需已配置 `config/data.yaml` 中 `paths.raw_root`（默认 `服创数据集`）与 `hydro_subdir`（默认 `海域要素预测`）。**单文件 time 步数可能因日而异**，拼接后总长度须 ≥ `input_steps + output_steps`（`hydro_hycom.yaml` 默认为 140）。
+**推荐**：React + FastAPI 双服务（实时/离线 NC 批处理、三模块面板）。
 
 ```powershell
-# 示例：先用 20 个日文件、滑窗步长 24，生成 data/processed/hydro/*.npz
-python -m src.preprocess.hydro_dataset --config config/hydro_hycom.yaml --from-nc --data-config config/data.yaml --max-daily-files 20 --stride 24
+# 终端 1 — API（默认 http://127.0.0.1:8000）
+.\scripts\run_web_api.ps1
 
-python -m src.hydro.train --config config/hydro_hycom.yaml
-python -m src.hydro.eval --config config/hydro_hycom.yaml --ckpt outputs/hydro/best.pt
+# 终端 2 — 前端（默认 http://127.0.0.1:5173）
+cd web
+npm install
+npm run dev
 ```
 
-全量处理时可在 `config/data.yaml` 的 `hydro_preprocess.max_daily_files` 设为 `null`，并酌情调大 `window_stride` 控制样本量。138×125 网格在 **CPU** 上训练极慢，建议使用 **GPU**。
+- 前端说明：`web/README.md`
+- API 路由与离线会话：`web_api/README.md`
+- Streamlit 旧版/离线页：`app/README.md`（`streamlit run app/main.py`）
 
-## 运行顺序（数据就绪后）
+功能开关见 `web/src/featureFlags.ts`、`app/feature_flags.py`。
 
-1. 预处理：`bash scripts/run_preprocess.sh`（或分步执行 `python -m src.preprocess.*`）
-2. 训练：`bash scripts/run_eddy_train.sh` 等
-3. 评估：`bash scripts/run_eval_all.sh`（需各模块已产出 `outputs/*/best.pt`）
-4. 演示：`python -m src.demo.app_gradio`  
-   - **界面开发说明**（功能清单、Gradio/Streamlit、验收标准、与配置衔接）见 **`相关文件/A09-项目开发文档.md` 第 5.4 节**。  
-   - 当前若入口仍为占位，需按该节完成 P0 后再用于正式录屏；无全量数据时可先用合成/烟测与占位流程保证可启动。
+---
 
-## 远程仓库
+## 仓库结构
 
-```bash
-git remote add origin git@github.com:HxiaoLZ23/EddyFusion.git
-git push -u origin main
+```
+├── config/          # 三模块 YAML（eddy / hydro / anomaly / data）
+├── src/
+│   ├── eddy/        # 训练、评估、NC→BGR、物理 8 通道、MP4 导出
+│   ├── hydro/       # ConvLSTM 训练与扩展指标
+│   ├── anomaly/     # 检测、LLM 报告、台风桥接
+│   └── preprocess/  # 数据集构建、YOLO 导出、NC 懒加载
+├── scripts/         # 训练、评估、消融、归档脚本
+├── web/             # React + Vite 论文系统
+├── web_api/         # FastAPI（/api/*）
+├── app/             # Streamlit 演示与离线系统
+├── docs/            # 工程手册、实验归档、开发规划（见索引）
+├── submission/      # 论文用表格、图、答辩材料
+├── tests/           # pytest（异常检测、涡旋物理、API）
+└── outputs/         # 本地训练/推理产物（gitignore）
 ```
 
-## 数据与权重
+**文档入口**：[`docs/文档分类索引.md`](docs/文档分类索引.md)
 
-`data/raw/`、`data/processed/` 下大文件与 `outputs/` 权重默认不提交；见 `.gitignore`。
+---
 
-## 文档索引（与当前实现对齐）
+## 训练与评估（概要）
 
-| 文档 | 内容 |
-|------|------|
-| `docs/README.md` | **`docs/` 目录总索引**（本表的超集与跳转） |
-| `docs/命题方数据集说明.md` | 命题方海区、变量、划分、指标摘要 |
-| `docs/涡旋_OW至YOLO伪标签开发参考.md` | **涡旋伪标签**：OW 多阈值投票、YOLO-seg 导出与文献路线（配合 `eddy_dataset --export-yolo`） |
-| `docs/涡旋模块工作汇总.md` | **涡旋本轮**：基线 vs 8ch、命令与指标表、消融是否必做 |
-| `docs/实施过程与局限性.md` | 各模块 Level、水文局限（缺测/内存/显存/划分） |
-| `docs/技术方案与算法说明.md` | 水文 ConvLSTM 基线与预处理口径 |
-| `docs/系统架构说明.md` | 数据流与目录职责 |
-| `docs/开发推进与优化.md` | 基线跑通后的优化顺序、测试集 eval、结果归档说明 |
-| `docs/云端训练与目录归档.md` | **§0 云/本路径契约**、云机目录与 Git 边界、水文/涡旋/异常与 **L0/L2**、归档拷回清单 |
-| `docs/水文_云端归档与专项B启动.md` | 专项 A **`AutoDL/outputs/cloud`** 归档约定；专项 B **首轮 eos005** 训练与 `compare` 命令 |
-| `docs/策略_第二套前端与水文预测热力图.md` | **大屏/第二套前端**：Vite + React/Vue + MapLibre，**FastAPI 供数**；**仅水文预测热力图**；不含本期异常告警地图 |
-| `docs/开发文档_新前端离线系统与实时系统.md` | **新前端**：离线/实时目录与 API 草案、本地联调、与 Streamlit 对齐说明 |
-| `data/README_data.md` | 原始数据路径、`processed` 子目录含义 |
+路径均相对**仓库根**；云端训练日志为产物溯源依据。
 
-### 涡旋：OW 伪标签 → YOLO-seg（命题方 `中尺度涡识别`）
+| 模块 | 典型命令 |
+|------|----------|
+| 涡旋 YOLO | `python -m src.eddy.train --config config/eddy_enh7.yaml` |
+| 涡旋评估 | `python -m src.eddy.eval --weights outputs/.../best.pt` |
+| 水文 | `python -m src.hydro.train --config config/hydro_hycom.yaml` |
+| 风浪 | `python -m src.anomaly.detect` / `eval`（见 `config/data.yaml`） |
 
-依赖 `服创数据集` 下涡旋 `.nc`（`adt`/`ugos`/`vgos`）。详见 **`docs/涡旋_OW至YOLO伪标签开发参考.md`**。
+消融与云端脚本：`scripts/run_eddy_*`、`scripts/hydro_cloud_assessment.py` 等。  
+指标与实验归档：`docs/实验与结果归档/`、`submission/tables/`。
 
-```bash
-# 烟测：每个 nc 最多 3 帧、时间步长 60
-python -m src.preprocess.eddy_dataset --export-yolo --data-config config/data.yaml \
-  --max-frames-per-file 3 --time-stride 60
+---
 
-# 全量/正式训练：不传 --time-stride 时默认 15（全局 train/val/test 一起加密；更密可显式 --time-stride 7）
-python -m src.preprocess.eddy_dataset --export-yolo --out data/processed/eddy_enh --stack-physics-npy
+## 数据与配置
 
-# 再训练（需已安装 ultralytics，且 dataset.yaml 已生成在 data/processed/eddy/）
-python scripts/check_eddy_ready.py --dataset-yaml data/processed/eddy/dataset.yaml
-python -m src.eddy.train --config config/eddy.yaml
-# 云机长时间无 tqdm/日志时可试无缓冲输出：python -u -m src.eddy.train --config config/eddy.yaml
+- 数据说明：[`data/README_data.md`](data/README_data.md)
+- 变量映射：`config/nc_variable_map.yaml`
+- LLM（百炼）示例：`config/dashscope.local.json.example` → 本地 `config/dashscope.local.json`（已 gitignore）
 
-# 第二轮增样本复训（导出→体检→训练→评估→刷新材料表）
-bash scripts/run_eddy_round2.sh
+**不可擅自更改**（交接/评测口径）：config 中 `level` 含义、eval 输出字段、数据层路径与 tensor 形状、PyTorch 版本下限。详见 `相关文件/AI_DEV_REQUIREMENTS.md`。
 
-# 收集 eddy 可直接贴到企业材料②的图与指标
-python scripts/collect_eddy_materials.py --src-root AutoDL/outputs/eddy --out-dir submission/figures/eddy_latest
+---
 
-# anomaly 命题方年份划分一键链路（预处理→训练→val/test评估→刷新表）
-bash scripts/run_anomaly_round2.sh
+## 测试
 
-# 台风知识库一键构建（下载→索引→案例）
-bash scripts/run_typhoon_kb.sh
-# Windows:
-# powershell -ExecutionPolicy Bypass -File scripts/run_typhoon_kb.ps1
+```powershell
+pytest tests/ -q
+python scripts/run_system_tests.py   # 可选：UI/API 归档
 ```
+
+---
+
+## 提交材料
+
+- 表格/图：`submission/tables/`、`submission/figures/`
+- 答辩 Q&A：`submission/答辩_前后端常见问题.md`
+- 云端结果说明：`outputs/cloud/README.md`
+
+---
+
+## 许可与引用
+
+赛题与命题方数据使用须遵守赛事规定；公开权重与大数据集请勿提交至 Git（见 `.gitignore`）。

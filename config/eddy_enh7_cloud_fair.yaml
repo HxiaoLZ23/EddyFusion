@@ -1,0 +1,45 @@
+# 7ch 无 Mask — 与 eddy_cloud_fair 同帧同划分（AutoDL/dataset/eddy_enh7）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-cloud-fair-7ch"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "AutoDL/dataset/eddy_enh7/dataset.yaml"
+  output_dir: "outputs/eddy_enh7_cloud_fair"
+
+model:
+  backbone: "yolov8n-seg"
+  architecture_yaml: "yolov8n-seg.yaml"
+  input_size: [640, 640]
+  channels: 7
+  init_from_coco: true
+
+train:
+  device: "cuda"
+  epochs: 100
+  batch_size: 4
+  workers: 4
+  amp: false
+  pretrained: false
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_enh7_cloud_fair/metrics_summary.json"

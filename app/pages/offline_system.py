@@ -7,6 +7,8 @@ from typing import Any
 
 import streamlit as st
 
+from feature_flags import show_hydro_ui
+
 from pages.ocean_tri_panel import render_tri_module_strip
 from services.nc_ingest_service import (
     MAX_NC_UPLOAD_MB,
@@ -18,12 +20,16 @@ from services.nc_ingest_service import (
 from services.eddy_demo_service import EddyDemoService, default_eddy_weight_path
 from services.nc_preprocess_facade import NcTaskBranch, describe_for_branch
 
-_BRANCH_LABELS: dict[str, str] = {
-    "eddy": "涡旋识别",
-    "hydro": "水文预测",
-    "windwave": "风浪预警",
-    "full_chain": "全链路（占位）",
-}
+_BRANCH_ORDER: list[tuple[str, str]] = [
+    ("eddy", "涡旋识别"),
+    ("hydro", "水文预测"),
+    ("windwave", "风浪预警"),
+    ("full_chain", "全链路（占位）"),
+]
+
+
+def _branch_select_options() -> list[tuple[str, str]]:
+    return [(k, v) for k, v in _BRANCH_ORDER if k != "hydro" or show_hydro_ui()]
 
 
 def render() -> None:
@@ -52,10 +58,11 @@ def render() -> None:
         cleanup_old_nc_uploads(max_files=30)
 
     if paths:
+        opts = _branch_select_options()
         bkey = st.selectbox(
             "预处理目标分支（摘要用）",
-            options=list(_BRANCH_LABELS.keys()),
-            format_func=lambda k: _BRANCH_LABELS[k],
+            options=[o[0] for o in opts],
+            format_func=lambda k: next(v for kk, v in opts if kk == k),
             key="offline_nc_branch",
         )
         branch = NcTaskBranch(bkey)
@@ -132,6 +139,9 @@ def render() -> None:
     with c1:
         st.caption("涡旋识别：调参、视频/NPZ、几何导出")
     with c2:
-        st.caption("水文推理：L2 单样本与 NPZ 上传")
+        if show_hydro_ui():
+            st.caption("水文推理：L2 单样本与 NPZ 上传")
+        else:
+            st.caption("水文：暂缓（入口关闭，待新模型）")
     with c3:
         st.caption("风浪预警：联动台风与 LLM 解读")

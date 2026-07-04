@@ -12,4 +12,6 @@
 
 专项 B 多轮实验可加后缀，例如 `hydro_compare_val_summary_eos005.json`、`hydro_compare_val_summary_eos003.json`。
 
-详见 **`docs/水文_云端归档与专项B启动.md`**。
+详见 **`docs/工程手册/水文_云端归档与专项B启动.md`**。
+
+**全量云端镜像索引**（含 `hydro_l0_eos003/`、`eddy_enh/` 等）：**`docs/实验与结果归档/AutoDL_outputs_云端结果归档.md`**；本地目录 **`AutoDL/outputs/README.md`**。

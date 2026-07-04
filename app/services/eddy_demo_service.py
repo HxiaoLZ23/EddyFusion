@@ -6,7 +6,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 import cv2
 import numpy as np
@@ -14,28 +14,54 @@ import numpy as np
 from src.eddy.frequency_enhance import enhance_bgr_frequency
 from src.eddy.geometry import geometries_from_ultralytics_result
 from src.eddy.multichannel_fuse import load_fused_bgr_from_npz
+from src.eddy.nc_dual_batch import (
+    build_dual_frame_from_triple,
+    build_dual_frames_parallel,
+    extract_triple_slices_batch,
+    probe_netcdf_time_meta,
+)
 from src.eddy.nc_to_bgr import extract_bgr_frame_from_netcdf, extract_triple_scalar_fields_from_netcdf
-from src.eddy.stacked_physics import build_physics_stacked_hw8, relative_vorticity_and_okubo_weiss_from_uv
+from src.eddy.stacked_physics import build_physics_stacked_hw7, build_physics_stacked_hw8, relative_vorticity_and_okubo_weiss_from_uv
 from src.eddy.multiscale_tta import tta_any_detection
 from src.eddy.mp4_browser_safe import encode_bgr_frames_to_browser_mp4
 from src.utils.config import resolve_path
 
 
-def default_eddy_weight_path() -> str:
-    """优先已存在的 eddy_enh（8ch），否则基线 3ch；均无则返回基线占位路径。"""
+def default_eddy_weight_path_for_stack(stack: Literal["3ch", "7ch"] = "3ch") -> str:
+    """与 ``config/eddy.yaml``（3ch Fair-B0）、``config/eddy_enh7.yaml``（7ch）对齐的默认权重路径。"""
+    if stack == "7ch":
+        for rel in (
+            "outputs/eddy_enh7/train/weights/best.pt",
+            "outputs/eddy_enh7/best.pt",
+            "AutoDL/outputs/eddy_enh7/train/weights/best.pt",
+            "AutoDL/outputs/eddy_enh7/best.pt",
+        ):
+            if resolve_path(rel).is_file():
+                return rel
+        return "outputs/eddy_enh7/best.pt"
     for rel in (
-        "AutoDL/outputs/eddy_enh/train/weights/best.pt",
-        "AutoDL/outputs/eddy_enh/best.pt",
+        "outputs/eddy_v6_b0_fair/best.pt",
+        "outputs/eddy_v6_b0_fair/last.pt",
+        "AutoDL/outputs/eddy_v6_b0_fair/best.pt",
+        "AutoDL/outputs/eddy_v6_b0_fair/last.pt",
+        "outputs/eddy_cloud_fair/best.pt",
+        "outputs/eddy_cloud_fair/last.pt",
         "outputs/eddy/best.pt",
+        "AutoDL/outputs/eddy/train/weights/best.pt",
     ):
         if resolve_path(rel).is_file():
             return rel
-    return "outputs/eddy/best.pt"
+    return "outputs/eddy_v6_b0_fair/best.pt"
+
+
+def default_eddy_weight_path() -> str:
+    """兼容旧调用：默认 3 通道基线权重。"""
+    return default_eddy_weight_path_for_stack("3ch")
 
 
 @dataclass
 class EddyDemoService:
-    model_path: str = "outputs/eddy/best.pt"
+    model_path: str = "outputs/eddy_v6_b0_fair/best.pt"
     conf: float = 0.25
     iou: float = 0.45
     max_frames: int = 120
@@ -61,6 +87,42 @@ class EddyDemoService:
             pass
         return 3
 
+    def _yolo_device(self) -> str | int:
+        """Ultralytics ``predict(..., device=...)``；未显式指定时 YOLO 常落在 CPU。"""
+        override = os.environ.get("EDDY_YOLO_DEVICE", "").strip()
+        if override:
+            if override.isdigit():
+                return int(override)
+            return override
+        from src.utils.config import load_yaml, pick_device
+
+        preferred = "cuda"
+        for rel in ("config/eddy.yaml", "config/eddy_v6_b0_fair.yaml", "config/eddy_enh.yaml"):
+            try:
+                preferred = str(load_yaml(rel).get("train", {}).get("device", "cuda"))
+                break
+            except Exception:
+                continue
+        picked = pick_device(preferred)
+        if picked == "cuda":
+            import torch
+
+            if torch.cuda.is_available():
+                return 0
+            return "cpu"
+        return "cpu"
+
+    def _yolo_predict_kwargs(self, **extra: Any) -> dict[str, Any]:
+        kw: dict[str, Any] = {
+            "conf": float(self.conf),
+            "iou": float(self.iou),
+            "imgsz": int(self.base_imgsz),
+            "verbose": False,
+            "device": self._yolo_device(),
+        }
+        kw.update(extra)
+        return kw
+
     def _load_model(self) -> Any:
         try:
             from ultralytics import YOLO
@@ -71,7 +133,14 @@ class EddyDemoService:
             raise FileNotFoundError(f"未找到涡旋权重: {mp}")
         key = str(mp.resolve())
         if key not in self._MODEL_CACHE:
-            self._MODEL_CACHE[key] = YOLO(str(mp))
+            dev = self._yolo_device()
+            m = YOLO(str(mp))
+            if dev != "cpu":
+                try:
+                    m.to(dev)
+                except Exception:
+                    pass
+            self._MODEL_CACHE[key] = m
         return self._MODEL_CACHE[key]
 
     def _preprocess_bgr(self, frame: np.ndarray) -> np.ndarray:
@@ -195,6 +264,24 @@ class EddyDemoService:
                 extra_meta=merged_meta,
                 bgr_for_plot=bgr_vis,
             )
+        if ich == 7:
+            adt, u0, v0, nc_meta = extract_triple_scalar_fields_from_netcdf(p, time_index=int(time_index))
+            zeta, ow = relative_vorticity_and_okubo_weiss_from_uv(u0, v0)
+            hw7 = build_physics_stacked_hw7(adt, u0, v0, zeta, ow)
+            proc7 = np.clip(np.asarray(hw7, dtype=np.float64) * 255.0, 0.0, 255.0).astype(np.uint8)
+            merged_meta = {
+                "nc_path": str(p),
+                **{k: v for k, v in nc_meta.items() if k != "nc_path"},
+                "inference_input_channels": 7,
+                "inference_stack": "physics_hw7_from_nc",
+            }
+            return self._infer_bgr(
+                proc7,
+                task_id=task_id,
+                source_type="netcdf",
+                extra_meta=merged_meta,
+                bgr_for_plot=bgr_vis,
+            )
         return self._infer_bgr(
             bgr_vis,
             task_id=task_id,
@@ -233,11 +320,12 @@ class EddyDemoService:
             out_path=out_mp4,
         )
         if ok_ff:
+            enc_id = "h264_nvenc" if "nvenc" in ff_msg.lower() else "h264_ffmpeg"
             return {
                 "status": "success",
                 "mp4_path": str(out_mp4.resolve()),
                 "n_frames": len(norm),
-                "video_encoding": "h264_ffmpeg",
+                "video_encoding": enc_id,
                 "video_encoding_note": ff_msg,
             }
 
@@ -439,45 +527,88 @@ class EddyDemoService:
             },
         }
 
-    def infer_netcdf_dual_mp4(
+    @staticmethod
+    def _dual_job_dir(job_id: str) -> Path:
+        d = resolve_path("app/data/eddy_preview/jobs") / job_id
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _extract_nc_dual_frame(
+        self,
+        nc_path: Path,
+        time_index: int,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, dict[str, Any]]:
+        """仅读 NC：返回 (底图 BGR, YOLO 输入, 叠加底图可选, meta)。不跑 YOLO。"""
+        model = self._load_model()
+        ich = self._yolo_first_conv_in_channels(model)
+        stack_ch = 8 if ich >= 8 else (7 if ich == 7 else 3)
+        rows = extract_triple_slices_batch(nc_path, [int(time_index)])
+        if not rows:
+            raise ValueError(f"无法从 NC 读取 time_index={time_index}")
+        a0, u0, v0, meta = rows[0]
+        return build_dual_frame_from_triple(a0, u0, v0, meta, physics_stack_channels=stack_ch)
+
+    def _batch_annotate_yolo_frames(
+        self,
+        yolo_frames: list[np.ndarray],
+        plot_bgrs: list[np.ndarray | None],
+    ) -> tuple[list[np.ndarray], list[dict[str, Any]]]:
+        if not yolo_frames:
+            return [], []
+        model = self._load_model()
+        procs = [self._preprocess_frame_hwc(f) for f in yolo_frames]
+        batch_sz = int(os.environ.get("EDDY_DUAL_YOLO_BATCH", "4"))
+        batch_sz = max(1, min(batch_sz, len(procs)))
+        annotated: list[np.ndarray] = []
+        timeline: list[dict[str, Any]] = []
+        for i in range(0, len(procs), batch_sz):
+            chunk_p = procs[i : i + batch_sz]
+            chunk_plot = plot_bgrs[i : i + batch_sz]
+            pred_list = model.predict(chunk_p, **self._yolo_predict_kwargs())
+            for proc, pred, bfp in zip(chunk_p, pred_list, chunk_plot):
+                num_det = 0
+                peak = 0.0
+                mean_conf = 0.0
+                if pred is not None and getattr(pred, "boxes", None) is not None:
+                    boxes = pred.boxes
+                    num_det = int(len(boxes))
+                    if num_det > 0 and getattr(boxes, "conf", None) is not None:
+                        arr = boxes.conf.detach().cpu().numpy().astype(float).reshape(-1)
+                        peak = float(np.max(arr))
+                        mean_conf = float(np.mean(arr))
+                timeline.append(
+                    {
+                        # peak_score = 当帧所有检测框 conf 的 max（与视频角标一致；非平均）
+                        "peak_score": round(peak, 4),
+                        "max_conf": round(peak, 4),
+                        "mean_conf": round(mean_conf, 4),
+                        "status": "hit" if num_det > 0 else "miss",
+                        "count": num_det,
+                    }
+                )
+                annotated.append(self._plot_or_fallback_bgr(pred, proc, bgr_for_plot=bfp))
+        return annotated, timeline
+
+    def _plan_dual_indices(
         self,
         *,
-        nc_path: str,
-        time_start: int = 0,
-        time_stop: int | None = None,
-        time_stride: int = 1,
-        fps: float = 1.0,
-        max_frames: int = 120,
-        task_id: str | None = None,
-    ) -> dict[str, Any]:
-        """
-        整段 NC 时间索引逐帧推理，生成 **两路** MP4：上=无底图/流场可视化，下=带检测框（与《规划》§3 一致）。
-        默认 fps=1；依赖 ffmpeg 输出浏览器可播 H.264。
-        性能：当请求 time_stride 为 1 时，对 T>200 / T>360 自动提高到步长 2/3；再按 max_frames 截断，
-        并默认最多 32 帧 YOLO 推理（EDDY_DUAL_MAX_INFER_FRAMES，上限 120），以缩短总耗时。
-        """
-        p = resolve_path(nc_path)
-        if not p.is_file():
-            return {"status": "failed", "message": f"NC 不存在: {p}"}
-
-        _b0, meta0 = extract_bgr_frame_from_netcdf(p, time_index=0)
-        del _b0
+        nc_path: Path,
+        time_start: int,
+        time_stop: int | None,
+        time_stride: int,
+        max_frames: int,
+    ) -> tuple[list[int], bool, dict[str, Any]]:
+        meta0 = probe_netcdf_time_meta(nc_path)
         tlen = meta0.get("time_len")
         if tlen is None or int(tlen) < 2:
-            return {
-                "status": "failed",
-                "message": "该 NC 无可用时间维或仅单时次，无法生成双路视频；请使用含 time>1 的格点序列。",
-            }
-
+            raise ValueError("该 NC 无可用时间维或仅单时次，无法生成双路视频；请使用含 time>1 的格点序列。")
         T = int(tlen)
         t0 = max(0, min(int(time_start), T - 1))
         t1 = T - 1 if time_stop is None else max(0, min(int(time_stop), T - 1))
         if t1 < t0:
             t0, t1 = t1, t0
-
         stride_user = max(1, int(time_stride))
         stride = stride_user
-        # 未显式加大步长时，按全长自动稀疏时间索引，减少 YOLO 调用（仍可通过 time_stride>1 进一步加速）
         if stride_user == 1:
             if T > 360:
                 stride = 3
@@ -489,71 +620,213 @@ class EddyDemoService:
         if len(indices) > cap:
             indices = indices[:cap]
             truncated = True
-
-        # 双路 MP4 逐帧 YOLO 成本高：再均匀抽样控制推理次数（默认最多 32 帧，可用 EDDY_DUAL_MAX_INFER_FRAMES 覆盖）
-        dual_infer_cap = int(os.environ.get("EDDY_DUAL_MAX_INFER_FRAMES", "32"))
+        dual_infer_cap = int(os.environ.get("EDDY_DUAL_MAX_INFER_FRAMES", "120"))
         dual_infer_cap = max(8, min(dual_infer_cap, 120))
         if len(indices) > dual_infer_cap:
             pos = np.linspace(0, len(indices) - 1, num=dual_infer_cap, dtype=float)
             indices = [indices[int(round(x))] for x in pos]
             truncated = True
+        plan = {
+            "time_len": T,
+            "time_start": t0,
+            "time_stop": t1,
+            "time_stride": stride,
+            "time_stride_requested": stride_user,
+            "dual_infer_cap": dual_infer_cap,
+            "n_infer_frames": len(indices),
+        }
+        return indices, truncated, plan
+
+    def _cache_dual_frames(self, nc_path: Path, indices: list[int], job_id: str) -> list[str]:
+        job_dir = self._dual_job_dir(job_id)
+        model = self._load_model()
+        ich = self._yolo_first_conv_in_channels(model)
+        stack_ch = 8 if ich >= 8 else (7 if ich == 7 else 3)
+        slices = extract_triple_slices_batch(nc_path, [int(ti) for ti in indices])
+        if len(slices) != len(indices):
+            raise RuntimeError(f"批量抽帧数量不一致: 期望 {len(indices)}，实际 {len(slices)}")
+        built = build_dual_frames_parallel(slices, physics_stack_channels=stack_ch)
+        labels: list[str] = []
+        plot_paths: list[str | None] = []
+        for k, (base, yolo_in, plot_bgr, meta) in enumerate(built):
+            np.save(job_dir / f"base_{k:04d}.npy", base)
+            np.save(job_dir / f"yolo_{k:04d}.npy", yolo_in)
+            if plot_bgr is not None:
+                pp = job_dir / f"plot_{k:04d}.npy"
+                np.save(pp, plot_bgr)
+                plot_paths.append(str(pp.name))
+            else:
+                plot_paths.append(None)
+            labels.append(str(meta.get("time_label", f"步 {indices[k]}")))
+        manifest = {
+            "nc_path": str(nc_path.resolve()),
+            "indices": indices,
+            "time_labels": labels,
+            "plot_files": plot_paths,
+            "n_frames": len(indices),
+            "extract_mode": "batch_nc_open",
+            "extract_workers": int(os.environ.get("EDDY_DUAL_EXTRACT_WORKERS", "0")),
+        }
+        (job_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        return labels
+
+    def _load_dual_job_manifest(self, job_id: str) -> dict[str, Any]:
+        job_dir = self._dual_job_dir(job_id)
+        mf = job_dir / "manifest.json"
+        if not mf.is_file():
+            raise FileNotFoundError(f"双路任务不存在或已过期: {job_id}")
+        return json.loads(mf.read_text(encoding="utf-8"))
+
+    def complete_dual_mp4_from_job(
+        self,
+        *,
+        job_id: str,
+        fps: float = 1.0,
+    ) -> dict[str, Any]:
+        """阶段二：对缓存帧批量 YOLO，合成带框 MP4（底图 MP4 应在阶段一已生成）。"""
+        manifest = self._load_dual_job_manifest(job_id)
+        job_dir = self._dual_job_dir(job_id)
+        n = int(manifest["n_frames"])
+        yolo_frames: list[np.ndarray] = []
+        plot_bgrs: list[np.ndarray | None] = []
+        for k in range(n):
+            yolo_frames.append(np.load(job_dir / f"yolo_{k:04d}.npy"))
+            pf = (manifest.get("plot_files") or [None] * n)[k]
+            if pf:
+                plot_bgrs.append(np.load(job_dir / pf))
+            else:
+                plot_bgrs.append(None)
+        frames_ann, det_stats = self._batch_annotate_yolo_frames(yolo_frames, plot_bgrs)
+        labels = list(manifest.get("time_labels") or [])
+        detection_timeline: list[dict[str, Any]] = []
+        for i, st in enumerate(det_stats):
+            row = dict(st)
+            row["time"] = labels[i] if i < len(labels) else f"帧 {i}"
+            detection_timeline.append(row)
+        enc_a = self._write_bgr_frames_mp4(frames_ann, fps=float(fps), task_id=job_id, basename="eddy_nc_ann")
+        if enc_a.get("status") != "success":
+            return enc_a
+        try:
+            root = resolve_path(".")
+            ann_rel = Path(enc_a["mp4_path"]).resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            ann_rel = enc_a["mp4_path"]
+        return {
+            "status": "success",
+            "phase": "complete",
+            "annotated_mp4": ann_rel,
+            "preview_annotated": Path(ann_rel).name,
+            "n_frames": n,
+            "time_labels": manifest.get("time_labels", []),
+            "time_indices": manifest.get("indices", []),
+            "detection_timeline": detection_timeline,
+            "job_id": job_id,
+            "video_encoding": enc_a.get("video_encoding"),
+        }
+
+    def infer_netcdf_dual_mp4(
+        self,
+        *,
+        nc_path: str,
+        time_start: int = 0,
+        time_stop: int | None = None,
+        time_stride: int = 1,
+        fps: float = 1.0,
+        max_frames: int = 120,
+        task_id: str | None = None,
+        deliver: Literal["full", "base", "annotate"] = "full",
+        job_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        整段 NC 生成双路 MP4：上=无底图/流场，下=带检测框。
+        deliver=base：仅读 NC + 编码底图（无 YOLO），可先返回播放；deliver=annotate：对 job 缓存批量 YOLO；
+        deliver=full：先底图再批量 YOLO（推理帧数仍受 EDDY_DUAL_MAX_INFER_FRAMES 约束，不减少上限）。
+        """
+        if deliver == "annotate":
+            if not job_id:
+                return {"status": "failed", "message": "annotate 阶段需要 job_id"}
+            out = self.complete_dual_mp4_from_job(job_id=job_id, fps=float(fps))
+            return out
+
+        p = resolve_path(nc_path)
+        if not p.is_file():
+            return {"status": "failed", "message": f"NC 不存在: {p}"}
+
+        try:
+            indices, truncated, plan = self._plan_dual_indices(
+                nc_path=p,
+                time_start=int(time_start),
+                time_stop=time_stop,
+                time_stride=int(time_stride),
+                max_frames=int(max_frames),
+            )
+        except ValueError as e:
+            return {"status": "failed", "message": str(e)}
+
+        tag = job_id or task_id or uuid.uuid4().hex[:12]
+        try:
+            time_labels = self._cache_dual_frames(p, indices, tag)
+        except Exception as e:
+            return {"status": "failed", "message": f"抽帧缓存失败: {e}"}
 
         frames_base: list[np.ndarray] = []
-        frames_ann: list[np.ndarray] = []
-        time_labels: list[str] = []
-        for ti in indices:
-            one = self.infer_netcdf_frame(nc_path=str(p), time_index=int(ti), task_id=None)
-            if one.get("status") != "success":
-                return {
-                    "status": "failed",
-                    "message": f"time_index={ti} 推理失败: {one.get('message', one)}",
-                }
-            bb = one.get("base_frame_bgr")
-            ab = one.get("annotated_frame_bgr")
-            if bb is None or ab is None:
-                return {"status": "failed", "message": f"time_index={ti} 缺少底图或标注帧"}
-            frames_base.append(np.asarray(bb, dtype=np.uint8))
-            frames_ann.append(np.asarray(ab, dtype=np.uint8))
-            m = one.get("meta") or {}
-            time_labels.append(str(m.get("time_label", f"步 {ti}")))
+        job_dir = self._dual_job_dir(tag)
+        for k in range(len(indices)):
+            frames_base.append(np.load(job_dir / f"base_{k:04d}.npy"))
 
-        tag = task_id or uuid.uuid4().hex[:12]
         enc_b = self._write_bgr_frames_mp4(frames_base, fps=float(fps), task_id=tag, basename="eddy_nc_base")
         if enc_b.get("status") != "success":
             return enc_b
-        enc_a = self._write_bgr_frames_mp4(frames_ann, fps=float(fps), task_id=tag, basename="eddy_nc_ann")
-        if enc_a.get("status") != "success":
-            return enc_a
 
         try:
             root = resolve_path(".")
             base_rel = Path(enc_b["mp4_path"]).resolve().relative_to(root.resolve()).as_posix()
-            ann_rel = Path(enc_a["mp4_path"]).resolve().relative_to(root.resolve()).as_posix()
         except ValueError:
             base_rel = enc_b["mp4_path"]
-            ann_rel = enc_a["mp4_path"]
+        base_name = Path(base_rel).name
+
+        if deliver == "base":
+            return {
+                "status": "success",
+                "phase": "base_ready",
+                "job_id": tag,
+                "base_mp4": base_rel,
+                "preview_base": base_name,
+                "fps": float(fps),
+                "n_frames": len(frames_base),
+                "time_indices": indices,
+                "time_labels": time_labels,
+                "truncated": truncated,
+                "video_encoding": enc_b.get("video_encoding"),
+                "video_encoding_note": enc_b.get("video_encoding_note"),
+                "meta": {"nc_path": str(p), **plan},
+            }
+
+        ann_out = self.complete_dual_mp4_from_job(job_id=tag, fps=float(fps))
+        if ann_out.get("status") != "success":
+            return ann_out
+        try:
+            ann_rel = ann_out["annotated_mp4"]
+        except KeyError:
+            ann_rel = ann_out.get("mp4_path", "")
 
         return {
             "status": "success",
+            "phase": "complete",
+            "job_id": tag,
             "base_mp4": base_rel,
             "annotated_mp4": ann_rel,
+            "preview_base": base_name,
+            "preview_annotated": ann_out.get("preview_annotated", Path(str(ann_rel)).name),
             "fps": float(fps),
-            "n_frames": int(enc_b["n_frames"]),
+            "n_frames": len(frames_base),
             "time_indices": indices,
             "time_labels": time_labels,
+            "detection_timeline": ann_out.get("detection_timeline", []),
             "truncated": truncated,
             "video_encoding": enc_b.get("video_encoding"),
             "video_encoding_note": enc_b.get("video_encoding_note"),
-            "meta": {
-                "nc_path": str(p),
-                "time_len": T,
-                "time_start": t0,
-                "time_stop": t1,
-                "time_stride": stride,
-                "time_stride_requested": stride_user,
-                "dual_infer_cap": dual_infer_cap,
-                "n_infer_frames": len(indices),
-            },
+            "meta": {"nc_path": str(p), **plan},
         }
 
     def _infer_bgr(
@@ -576,14 +849,9 @@ class EddyDemoService:
                 scales=tuple(self.multiscale_scales),
                 conf=float(self.conf),
                 iou=float(self.iou),
+                device_hint=str(self._yolo_device()),
             )
-        pred_list = model.predict(
-            proc,
-            conf=float(self.conf),
-            iou=float(self.iou),
-            imgsz=int(self.base_imgsz),
-            verbose=False,
-        )
+        pred_list = model.predict(proc, **self._yolo_predict_kwargs())
         pred = pred_list[0] if pred_list else None
         H, W = proc.shape[:2]
         num_det = 0
@@ -677,14 +945,9 @@ class EddyDemoService:
                     scales=tuple(self.multiscale_scales),
                     conf=float(self.conf),
                     iou=float(self.iou),
+                    device_hint=str(self._yolo_device()),
                 )
-            pred_list = model.predict(
-                proc,
-                conf=float(self.conf),
-                iou=float(self.iou),
-                imgsz=int(self.base_imgsz),
-                verbose=False,
-            )
+            pred_list = model.predict(proc, **self._yolo_predict_kwargs())
             pred = pred_list[0] if pred_list else None
             H, W = proc.shape[:2]
             num_det = 0

@@ -1,0 +1,3 @@
+﻿experiment,val_mask_map50,test_mask_map50,val_mask_map50_95,test_mask_map50_95,val_mask_map75,test_mask_map75,val_mask_mean_precision,test_mask_mean_precision,val_mask_mean_recall,test_mask_mean_recall,val_mask_mean_f1,test_mask_mean_f1,val_json,test_json
+3ch_cloud_fair,0.933831,0.914533,0.605525,0.58735,0.722942,0.681606,0.896512,0.853587,0.86482,0.842942,0.880275,0.848199,F:\创赛\outputs\eddy_cloud_fair\metrics_summary_val.json,F:\创赛\outputs\eddy_cloud_fair\metrics_summary_test.json
+7ch_cloud_fair,0.834321,0.849803,0.490296,0.507329,0.55948,0.579285,0.817621,0.814003,0.742014,0.73533,0.772289,0.765908,F:\创赛\outputs\eddy_enh7_cloud_fair\metrics_summary_val.json,F:\创赛\outputs\eddy_enh7_cloud_fair\metrics_summary_test.json

@@ -278,15 +278,7 @@ def _render_demo_cases(defaults: dict[str, Any]) -> None:
 
 
 def render() -> None:
-    st.title("台风知识库")
-    st.caption("面向演示与日常使用：快速检索、历史浏览、案例复现三合一；并作为系统口径与命题任务 (5) 的定调说明入口。")
-    with st.expander("系统定调 · 与命题任务 (5) 对齐", expanded=False):
-        st.markdown(
-            "- **风-浪异常**：以结构化 `run_detect` 输出（含 3σ 等级、残差与可选 `assessment_note`）为报告基础；"
-            "台风候选来自本地 `events.json` 时空检索 + DTW，非大模型臆测。\n"
-            "- **历史台风**：检索范围由查询时间窗与海区决定，索引可来自 IBTrACS 等构建脚本；扩大窗区见 `app/config/demo.yaml` 的 `typhoon_link`。\n"
-            "- **演示与实测**：上传视频路径若无水文残差，可能使用 peak_score 代理；配套 NPZ 含 `demo_wind_*` 时走演示风浪序列。"
-        )
+    st.title("台风查询")
     defaults = _default_query_params()
     _render_kb_status(defaults["events_json_path"])
     t1, t2, t3 = st.tabs(["快速检索", "历史事件浏览", "联动案例"])

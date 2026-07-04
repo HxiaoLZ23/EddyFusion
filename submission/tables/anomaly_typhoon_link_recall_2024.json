@@ -1,0 +1,857 @@
+{
+  "metric_name": "typhoon_link_recall_oracle_bbox",
+  "description": "在真值台风时空窗作为异常查询框时，Top-K 检索是否包含该 event_id；评测台风弱关联解释层，非端到端台风检测。",
+  "events_json": "F:\\创赛\\data\\processed\\anomaly\\typhoon_kb\\events.json",
+  "test_years": [
+    2024
+  ],
+  "top_k": 10,
+  "min_peak_wind_kt": 34.0,
+  "basin_filter": null,
+  "n_gt_events": 84,
+  "n_hit": 84,
+  "link_recall": 1.0,
+  "use_full_detect": false,
+  "per_event": [
+    {
+      "event_id": "2023292S03172",
+      "name": "LOLA",
+      "season": "2024",
+      "peak_wind_kt": 115.0,
+      "hit_top_k": true,
+      "top1_id": "2023292S03172",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2023316S08168",
+      "name": "MAL",
+      "season": "2024",
+      "peak_wind_kt": 70.0,
+      "hit_top_k": true,
+      "top1_id": "2023316S08168",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2023337S08165",
+      "name": "JASPER",
+      "season": "2024",
+      "peak_wind_kt": 115.0,
+      "hit_top_k": true,
+      "top1_id": "2023337S08165",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2023364S19035",
+      "name": "ALVARO",
+      "season": "2024",
+      "peak_wind_kt": 65.0,
+      "hit_top_k": true,
+      "top1_id": "2023364S19035",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024012S09093",
+      "name": "ANGGREK",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024012S09093",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024012S12059",
+      "name": "BELAL",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024012S12059",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024017S15151",
+      "name": "KIRRILY",
+      "season": "2024",
+      "peak_wind_kt": 65.0,
+      "hit_top_k": true,
+      "top1_id": "2024017S15151",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024022S16058",
+      "name": "CANDICE",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024022S16058",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024035S16188",
+      "name": "NAT",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024035S16188",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024037S09184",
+      "name": "OSAI",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024037S09184",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024044S14066",
+      "name": "DJOUNGOU",
+      "season": "2024",
+      "peak_wind_kt": 115.0,
+      "hit_top_k": true,
+      "top1_id": "2024044S14066",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024044S15134",
+      "name": "LINCOLN",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024044S15134",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024049S17052",
+      "name": "ELEANOR",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024049S17052",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024061S11062",
+      "name": "FILIPO",
+      "season": "2024",
+      "peak_wind_kt": 80.0,
+      "hit_top_k": true,
+      "top1_id": "2024061S11062",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024067S10090",
+      "name": "NEVILLE",
+      "season": "2024",
+      "peak_wind_kt": 100.0,
+      "hit_top_k": true,
+      "top1_id": "2024067S10090",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024073S14128",
+      "name": "MEGAN",
+      "season": "2024",
+      "peak_wind_kt": 90.0,
+      "hit_top_k": true,
+      "top1_id": "2024073S14128",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024082S08054",
+      "name": "GAMANE",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024082S08054",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024096S11120",
+      "name": "OLGA",
+      "season": "2024",
+      "peak_wind_kt": 110.0,
+      "hit_top_k": true,
+      "top1_id": "2024096S11120",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024100S11152",
+      "name": "PAUL",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024100S11152",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024121S07047",
+      "name": "HIDAYA",
+      "season": "2024",
+      "peak_wind_kt": 80.0,
+      "hit_top_k": true,
+      "top1_id": "2024121S07047",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024134S07055",
+      "name": "IALY",
+      "season": "2024",
+      "peak_wind_kt": 65.0,
+      "hit_top_k": true,
+      "top1_id": "2024134S07055",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024141N03142",
+      "name": "EWINIAR",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024141N03142",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024145N14087",
+      "name": "REMAL",
+      "season": "2024",
+      "peak_wind_kt": 60.0,
+      "hit_top_k": true,
+      "top1_id": "2024145N14087",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024151N18113",
+      "name": "MALIKSI",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024151N18113",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024170N20267",
+      "name": "ALBERTO",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024170N20267",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024181N09320",
+      "name": "BERYL",
+      "season": "2024",
+      "peak_wind_kt": 145.0,
+      "hit_top_k": true,
+      "top1_id": "2024181N09320",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024183N20265",
+      "name": "CHRIS",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024183N20265",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024186N15256",
+      "name": "ALETTA",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024186N15256",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024198N08130",
+      "name": "PRAPIROON",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024198N08130",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024201N12133",
+      "name": "GAEMI",
+      "season": "2024",
+      "peak_wind_kt": 90.0,
+      "hit_top_k": true,
+      "top1_id": "2024201N12133",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024207N16250",
+      "name": "BUD",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024207N16250",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024213N14254",
+      "name": "CARLOTTA",
+      "season": "2024",
+      "peak_wind_kt": 80.0,
+      "hit_top_k": true,
+      "top1_id": "2024213N14254",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024216N20284",
+      "name": "DEBBY",
+      "season": "2024",
+      "peak_wind_kt": 70.0,
+      "hit_top_k": true,
+      "top1_id": "2024216N20284",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024216N12231",
+      "name": "DANIEL",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024216N12231",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024218N16247",
+      "name": "EMILIA",
+      "season": "2024",
+      "peak_wind_kt": 60.0,
+      "hit_top_k": true,
+      "top1_id": "2024218N16247",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024218N23143",
+      "name": "MARIA",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024218N23143",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024218N14254",
+      "name": "FABIO",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024218N14254",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024224N27154",
+      "name": "SON-TINH",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024224N27154",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024225N22135",
+      "name": "AMPIL",
+      "season": "2024",
+      "peak_wind_kt": 85.0,
+      "hit_top_k": true,
+      "top1_id": "2024225N22135",
+      "n_candidates": 6,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024225N14313",
+      "name": "ERNESTO",
+      "season": "2024",
+      "peak_wind_kt": 85.0,
+      "hit_top_k": true,
+      "top1_id": "2024225N14313",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024225N24147",
+      "name": "WUKONG",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024225N22135",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024231N24126",
+      "name": "JONGDARI",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024231N24126",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024231N14251",
+      "name": "GILMA",
+      "season": "2024",
+      "peak_wind_kt": 115.0,
+      "hit_top_k": true,
+      "top1_id": "2024231N14251",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024233N15148",
+      "name": "SHANSHAN",
+      "season": "2024",
+      "peak_wind_kt": 95.0,
+      "hit_top_k": true,
+      "top1_id": "2024233N15148",
+      "n_candidates": 5,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024235N16223",
+      "name": "HONE",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024235N16223",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024236N14248",
+      "name": "HECTOR",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024236N14248",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024238N25077",
+      "name": "ASNA",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024238N25077",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024244N09137",
+      "name": "YAGI",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024244N09137",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024246N22147",
+      "name": "LEEPI",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024246N22147",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024253N11148",
+      "name": "BEBINCA",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024253N11148",
+      "n_candidates": 5,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024253N21266",
+      "name": "FRANCINE",
+      "season": "2024",
+      "peak_wind_kt": 90.0,
+      "hit_top_k": true,
+      "top1_id": "2024253N21266",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024256N16332",
+      "name": "GORDON",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024256N16332",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024256N18254",
+      "name": "ILEANA",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024256N18254",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024259N12145",
+      "name": "PULASAN",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024259N12145",
+      "n_candidates": 5,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024259N17126",
+      "name": "SOULIK",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024259N17126",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024259N31284",
+      "name": "UNNAMED",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024259N31284",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024267N14261",
+      "name": "JOHN",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024267N14261",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024267N29129",
+      "name": "CIMARON",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024267N29129",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024268N17278",
+      "name": "HELENE",
+      "season": "2024",
+      "peak_wind_kt": 120.0,
+      "hit_top_k": true,
+      "top1_id": "2024268N17278",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024269N39302",
+      "name": "ISAAC",
+      "season": "2024",
+      "peak_wind_kt": 90.0,
+      "hit_top_k": true,
+      "top1_id": "2024269N39302",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024269N14150",
+      "name": "JEBI",
+      "season": "2024",
+      "peak_wind_kt": 65.0,
+      "hit_top_k": true,
+      "top1_id": "2024269N14150",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024270N24128",
+      "name": "KRATHON",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024270N24128",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024271N17319",
+      "name": "JOYCE",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024271N17319",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024274N14328",
+      "name": "KIRK",
+      "season": "2024",
+      "peak_wind_kt": 130.0,
+      "hit_top_k": true,
+      "top1_id": "2024274N14328",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024275N14264",
+      "name": "UNNAMED",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024275N14264",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024275N10336",
+      "name": "LESLIE",
+      "season": "2024",
+      "peak_wind_kt": 90.0,
+      "hit_top_k": true,
+      "top1_id": "2024275N10336",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024278N11150",
+      "name": "BARIJAT",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024278N11150",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024279N21265",
+      "name": "MILTON",
+      "season": "2024",
+      "peak_wind_kt": 155.0,
+      "hit_top_k": true,
+      "top1_id": "2024279N21265",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024293N13141",
+      "name": "TRAMI",
+      "season": "2024",
+      "peak_wind_kt": 60.0,
+      "hit_top_k": true,
+      "top1_id": "2024293N13141",
+      "n_candidates": 2,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024293N17275",
+      "name": "NADINE",
+      "season": "2024",
+      "peak_wind_kt": 50.0,
+      "hit_top_k": true,
+      "top1_id": "2024293N17275",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024293N21294",
+      "name": "OSCAR",
+      "season": "2024",
+      "peak_wind_kt": 75.0,
+      "hit_top_k": true,
+      "top1_id": "2024293N21294",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024295N15092",
+      "name": "DANA",
+      "season": "2024",
+      "peak_wind_kt": 60.0,
+      "hit_top_k": true,
+      "top1_id": "2024295N15092",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024296N13260",
+      "name": "KRISTY",
+      "season": "2024",
+      "peak_wind_kt": 140.0,
+      "hit_top_k": true,
+      "top1_id": "2024296N13260",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024298N13150",
+      "name": "KONG-REY",
+      "season": "2024",
+      "peak_wind_kt": 100.0,
+      "hit_top_k": true,
+      "top1_id": "2024298N13150",
+      "n_candidates": 3,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024306N39319",
+      "name": "PATTY",
+      "season": "2024",
+      "peak_wind_kt": 55.0,
+      "hit_top_k": true,
+      "top1_id": "2024306N39319",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024307N11232",
+      "name": "LANE",
+      "season": "2024",
+      "peak_wind_kt": 40.0,
+      "hit_top_k": true,
+      "top1_id": "2024307N11232",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024307N06143",
+      "name": "YINXING",
+      "season": "2024",
+      "peak_wind_kt": 100.0,
+      "hit_top_k": true,
+      "top1_id": "2024307N06143",
+      "n_candidates": 5,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024309N13283",
+      "name": "RAFAEL",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024309N13283",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024312N14145",
+      "name": "TORAJI",
+      "season": "2024",
+      "peak_wind_kt": 70.0,
+      "hit_top_k": true,
+      "top1_id": "2024312N14145",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024313N10169",
+      "name": "MAN-YI",
+      "season": "2024",
+      "peak_wind_kt": 105.0,
+      "hit_top_k": true,
+      "top1_id": "2024313N10169",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024314N07151",
+      "name": "USAGI",
+      "season": "2024",
+      "peak_wind_kt": 95.0,
+      "hit_top_k": true,
+      "top1_id": "2024314N07151",
+      "n_candidates": 4,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024319N16282",
+      "name": "SARA",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024319N16282",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024329N04089",
+      "name": "FENGAL",
+      "season": "2024",
+      "peak_wind_kt": 45.0,
+      "hit_top_k": true,
+      "top1_id": "2024329N04089",
+      "n_candidates": 1,
+      "anomaly_level": null
+    },
+    {
+      "event_id": "2024357N10115",
+      "name": "PABUK",
+      "season": "2024",
+      "peak_wind_kt": 35.0,
+      "hit_top_k": true,
+      "top1_id": "2024357N10115",
+      "n_candidates": 1,
+      "anomaly_level": null
+    }
+  ]
+}

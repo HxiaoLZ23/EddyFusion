@@ -1,0 +1,44 @@
+# 3ch 基线 — 与云端 AutoDL/dataset/eddy 同口径（stride=7，val 53）
+# 【归档】默认 Fair 已迁至 config/eddy.yaml / eddy_v6_b0_fair（355/356 stem）；本文件仅作历史 cloud 对照
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-cloud-fair-3ch"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "AutoDL/dataset/eddy/dataset.yaml"
+  output_dir: "outputs/eddy_cloud_fair"
+
+model:
+  backbone: "yolov8n-seg"
+  input_size: [640, 640]
+  channels: 3
+
+train:
+  device: "cuda"
+  epochs: 100
+  batch_size: 4
+  workers: 4
+  amp: true
+  pretrained: true
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_cloud_fair/metrics_summary.json"

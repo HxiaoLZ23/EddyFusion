@@ -1,0 +1,43 @@
+# V6 Phase B0 — Proposed triplet offset=5（边界敏感，可选）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-v6-b0-proposed-k5"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "AutoDL/dataset/eddy_v6_b0_proposed_k5/dataset.yaml"
+  output_dir: "outputs/eddy_v6_b0_proposed_k5"
+
+model:
+  backbone: "yolov8n-seg"
+  input_size: [640, 640]
+  channels: 3
+
+train:
+  device: "cuda"
+  epochs: 50
+  batch_size: 4
+  workers: 4
+  amp: true
+  pretrained: true
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_v6_b0_proposed_k5/metrics_summary.json"

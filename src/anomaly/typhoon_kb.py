@@ -31,9 +31,43 @@ def _to_float(text: str | None, default: float = 0.0) -> float:
     if t == "" or t.upper() in {"NA", "NAN"}:
         return default
     try:
-        return float(t)
+        v = float(t)
     except ValueError:
         return default
+    if v <= -900:  # IBTrACS 缺测常填 -999
+        return default
+    return v
+
+
+# IBTrACS 多机构风速列；按优先级取首个有效值（勿用 `WMO or USA`：空格 WMO 会阻断 USA）
+_WIND_KT_COLUMN_PRIORITY: tuple[str, ...] = (
+    "WMO_WIND",
+    "USA_WIND",
+    "TOKYO_WIND",
+    "CMA_WIND",
+    "HKO_WIND",
+    "KMA_WIND",
+    "BOM_WIND",
+    "NEUMANN_WIND",
+    "TD9636_WIND",
+    "TD9635_WIND",
+    "DS824_WIND",
+    "REUNION_WIND",
+    "NADI_WIND",
+    "WELLINGTON_WIND",
+)
+
+
+def _wind_kt_from_row(row: dict[str, str]) -> float:
+    """从 IBTrACS 行解析风速 (kt)；跳过空白/缺测，支持多机构回退。"""
+    for key in _WIND_KT_COLUMN_PRIORITY:
+        v = _to_float(row.get(key), default=-1.0)
+        if v >= 0.0:
+            return float(v)
+    return 0.0
+
+
+KT_TO_MPS = 0.514444
 
 
 def _wind_level(wind_kt: float) -> str:
@@ -52,6 +86,42 @@ def _time_overlap_hours(a_start: datetime, a_end: datetime, b_start: datetime, b
     e = min(a_end, b_end)
     delta = (e - s).total_seconds() / 3600.0
     return max(0.0, delta)
+
+
+def _query_center(query: QueryBox) -> tuple[float, float]:
+    return (
+        (float(query.lon_min) + float(query.lon_max)) / 2.0,
+        (float(query.lat_min) + float(query.lat_max)) / 2.0,
+    )
+
+
+def _center_distance_deg(q_lon: float, q_lat: float, event_lon: float, event_lat: float) -> float:
+    dlon = float(event_lon) - float(q_lon)
+    dlat = float(event_lat) - float(q_lat)
+    return float((dlon * dlon + dlat * dlat) ** 0.5)
+
+
+def _prescreen_score(*, bbox_ratio: float, center_distance_deg: float, mode: str) -> float:
+    """初筛排序分（不含持续时间）；最终 Top-K 仍由 DTW 决定。"""
+    m = str(mode or "bbox_ratio").strip().lower()
+    if m == "center_distance":
+        return 1.0 / max(float(center_distance_deg), 1e-6)
+    return float(bbox_ratio)
+
+
+def _load_prescreen_score_mode() -> str:
+    try:
+        from src.anomaly.eddy_typhoon_bridge import _load_typhoon_link_yaml_cfgs
+
+        _, demo_cfg = _load_typhoon_link_yaml_cfgs()
+        ty_cfg = demo_cfg.get("typhoon_link") if isinstance(demo_cfg.get("typhoon_link"), dict) else {}
+        if isinstance(ty_cfg, dict):
+            raw = ty_cfg.get("prescreen_score_mode")
+            if raw is not None and str(raw).strip():
+                return str(raw).strip().lower()
+    except Exception:
+        pass
+    return "bbox_ratio"
 
 
 def _bbox_overlap_ratio(
@@ -119,7 +189,7 @@ def build_typhoon_index(
             event_id = _row_event_id(row, i)
             lon = _to_float(row.get("LON"), 0.0)
             lat = _to_float(row.get("LAT"), 0.0)
-            wind = _to_float(row.get("WMO_WIND") or row.get("USA_WIND"), 0.0)
+            wind = _wind_kt_from_row(row)
             rec = {
                 "time": t,
                 "lon": lon,
@@ -157,6 +227,10 @@ def build_typhoon_index(
         for k in retrieval_keys:
             retrieval_index.setdefault(k, []).append(event_id)
 
+        wind_track_kt = [round(float(r["wind_kt"]), 3) for r in recs]
+        track_times = [r["time"].strftime("%Y-%m-%d %H:%M:%S") for r in recs]
+        wind_track_mps = [round(v * KT_TO_MPS, 4) for v in wind_track_kt]
+
         events.append(
             {
                 "event_id": event_id,
@@ -175,6 +249,10 @@ def build_typhoon_index(
                 "intensity_level": level,
                 "n_points": len(recs),
                 "retrieval_keys": retrieval_keys,
+                "wind_track_kt": wind_track_kt,
+                "wind_track_mps": wind_track_mps,
+                "track_times": track_times,
+                "series_source": "ibtracs_center_wind",
             }
         )
 
@@ -213,7 +291,7 @@ def build_typhoon_index(
         )
         writer.writeheader()
         for e in events:
-            row = dict(e)
+            row = {k: v for k, v in e.items() if k in writer.fieldnames}
             row["retrieval_keys"] = "|".join(e["retrieval_keys"])
             writer.writerow(row)
 
@@ -249,11 +327,14 @@ def query_typhoon_events(
     events_json_path: str | Path,
     query: QueryBox,
     top_k: int = 20,
+    prescreen_score_mode: str | None = None,
 ) -> list[dict[str, Any]]:
     events_path = resolve_path(events_json_path)
     if not events_path.is_file():
         raise FileNotFoundError(f"事件索引不存在: {events_path}")
     events = json.loads(events_path.read_text(encoding="utf-8"))
+    score_mode = str(prescreen_score_mode or _load_prescreen_score_mode()).strip().lower()
+    q_lon_c, q_lat_c = _query_center(query)
     out: list[dict[str, Any]] = []
     for e in events:
         st = _parse_time(str(e.get("start_time", "")))
@@ -275,20 +356,37 @@ def query_typhoon_events(
         )
         if bbox_ratio <= 0:
             continue
-        score = overlap_h + 24.0 * bbox_ratio
-        out.append(
-            {
-                "event_id": e.get("event_id"),
-                "name": e.get("name", ""),
-                "start_time": e.get("start_time"),
-                "end_time": e.get("end_time"),
-                "intensity_level": e.get("intensity_level"),
-                "peak_wind_kt": e.get("peak_wind_kt"),
-                "bbox_overlap_ratio": round(bbox_ratio, 6),
-                "time_overlap_hours": round(overlap_h, 3),
-                "score": round(score, 6),
-                "summary": f"{e.get('event_id')}({e.get('name', '')}) {e.get('start_time')}~{e.get('end_time')}",
-            }
+        center_lon = float(e.get("center_lon", (float(e.get("lon_min", 0)) + float(e.get("lon_max", 0))) / 2.0))
+        center_lat = float(e.get("center_lat", (float(e.get("lat_min", 0)) + float(e.get("lat_max", 0))) / 2.0))
+        center_dist = _center_distance_deg(q_lon_c, q_lat_c, center_lon, center_lat)
+        score = _prescreen_score(
+            bbox_ratio=bbox_ratio,
+            center_distance_deg=center_dist,
+            mode=score_mode,
         )
+        row: dict[str, Any] = {
+            "event_id": e.get("event_id"),
+            "name": e.get("name", ""),
+            "start_time": e.get("start_time"),
+            "end_time": e.get("end_time"),
+            "intensity_level": e.get("intensity_level"),
+            "peak_wind_kt": e.get("peak_wind_kt"),
+            "bbox_overlap_ratio": round(bbox_ratio, 6),
+            "time_overlap_hours": round(overlap_h, 3),
+            "center_distance_deg": round(center_dist, 6),
+            "prescreen_score_mode": score_mode,
+            "score": round(score, 6),
+            "summary": f"{e.get('event_id')}({e.get('name', '')}) {e.get('start_time')}~{e.get('end_time')}",
+        }
+        track_mps = e.get("wind_track_mps")
+        track_kt = e.get("wind_track_kt")
+        if isinstance(track_mps, list) and track_mps:
+            row["wind_track_mps"] = [float(v) for v in track_mps]
+            row["series_source"] = e.get("series_source", "ibtracs_center_wind")
+        elif isinstance(track_kt, list) and track_kt:
+            row["wind_track_kt"] = [float(v) for v in track_kt]
+            row["wind_track_mps"] = [float(v) * KT_TO_MPS for v in track_kt]
+            row["series_source"] = e.get("series_source", "ibtracs_center_wind")
+        out.append(row)
     out.sort(key=lambda x: (-float(x["score"]), str(x["event_id"])))
     return out[: max(1, int(top_k))]

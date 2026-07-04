@@ -1,15 +1,26 @@
-const base = () => (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+import { apiUrl, formatApiFetchError } from "./apiBase";
 
 export async function uploadNcFiles(files: File[]): Promise<string[]> {
   const fd = new FormData();
   for (const f of files) {
     fd.append("files", f);
   }
-  const res = await fetch(`${base()}/api/offline/nc`, { method: "POST", body: fd });
+  let res: Response;
+  try {
+    res = await fetch(apiUrl("/api/offline/nc"), { method: "POST", body: fd });
+  } catch (e) {
+    throw new Error(formatApiFetchError(e));
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail || res.statusText);
+    const d = (err as { detail?: unknown }).detail;
+    const msg =
+      typeof d === "string" ? d : Array.isArray(d) ? JSON.stringify(d) : res.statusText;
+    throw new Error(msg || `上传失败 HTTP ${res.status}`);
   }
   const data = (await res.json()) as { paths: string[] };
+  if (!data.paths?.length) {
+    throw new Error("服务端未返回 NC 路径");
+  }
   return data.paths;
 }

@@ -31,6 +31,13 @@ def _norm_to_u8(x: np.ndarray, p_lo: float = 2.0, p_hi: float = 98.0) -> np.ndar
     return (y * 255).astype(np.uint8)
 
 
+def fair_adt_triple_bgr_u8(adt: np.ndarray, *, p_lo: float = 2.0, p_hi: float = 98.0) -> np.ndarray:
+    """Fair-B0 / V6 fair：单帧 ADT 经 P2/P98 拉伸后复制为三通道 BGR（与训练 export 一致）。"""
+    ch = _norm_to_u8(adt, p_lo=p_lo, p_hi=p_hi)
+    rgb = np.stack([ch, ch, ch], axis=-1)
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+
 def _spatial_only_vals(da: Any) -> np.ndarray:
     return np.asarray(da.values, dtype=np.float64)
 
@@ -106,65 +113,13 @@ def extract_triple_scalar_fields_from_netcdf(
     与 extract_bgr_frame_from_netcdf 相同的变量匹配逻辑，返回三通道**原始浮点场** (adt_like, u_like, v_like) 与 meta。
     用于由 SST/流场等构造 8 通道物理堆叠（eddy_enh）。
     """
-    path = Path(nc_path).expanduser().resolve()
-    ds, tmp_copy = open_netcdf_dataset(path)
-    meta: dict[str, Any] = {"nc_path": str(path)}
-    if tmp_copy is not None:
-        meta["opened_via_tmp"] = str(tmp_copy)
+    from src.eddy.nc_dual_batch import extract_triple_slices_batch
 
-    try:
-        candidates: list[tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], str]] = [
-            (("adt", "ADT"), ("ugos", "UGOS"), ("vgos", "VGOS"), "adt_ugos_vgos"),
-            (("sla", "SLA", "ssh", "SSH"), ("ugos", "UGOS", "ssu", "SSU"), ("vgos", "VGOS", "ssv", "SSV"), "sla_uv"),
-            (("sst", "SST"), ("ssu", "SSU"), ("ssv", "SSV"), "sst_ssu_ssv"),
-        ]
-        last_err: Exception | None = None
-        for n0, n1, n2, tag in candidates:
-            try:
-                ch0 = _pick_dataarray(ds, n0)
-                ch1 = _pick_dataarray(ds, n1)
-                ch2 = _pick_dataarray(ds, n2)
-            except KeyError as e:
-                last_err = e
-                continue
-
-            tname = _time_dim_name(ch0)
-            if tname is not None:
-                T = int(ch0.sizes[tname])
-                ti = max(0, min(int(time_index), T - 1))
-                a0 = _isel_time(ch0, tname, ti)
-                u0 = _isel_time(ch1, tname, ti)
-                v0 = _isel_time(ch2, tname, ti)
-                meta["time_dim"] = tname
-                meta["time_len"] = T
-                meta["time_index"] = ti
-                tl = _time_label_for_index(ch0, tname, ti)
-                if tl:
-                    meta["time_label"] = tl
-            else:
-                a0 = _spatial_only_vals(ch0)
-                u0 = _spatial_only_vals(ch1)
-                v0 = _spatial_only_vals(ch2)
-                meta["time_dim"] = None
-
-            if a0.shape != u0.shape or a0.shape != v0.shape:
-                last_err = ValueError(f"三通道形状不一致 {a0.shape} {u0.shape} {v0.shape}")
-                continue
-
-            meta["channel_triple"] = tag
-            return a0.astype(np.float64), u0.astype(np.float64), v0.astype(np.float64), meta
-
-        raise ValueError(
-            f"无法从 NC 匹配 ADT/流场或 SST/流场变量组合。最后错误: {last_err!r}；"
-            f"data_vars={list(ds.data_vars)}"
-        ) from last_err
-    finally:
-        ds.close()
-        if tmp_copy is not None:
-            try:
-                tmp_copy.unlink(missing_ok=True)  # type: ignore[arg-type]
-            except OSError:
-                pass
+    rows = extract_triple_slices_batch(nc_path, [int(time_index)])
+    if not rows:
+        raise ValueError(f"无法从 NC 读取 time_index={time_index}")
+    a0, u0, v0, meta = rows[0]
+    return a0, u0, v0, meta
 
 
 def extract_bgr_frame_from_netcdf(
@@ -181,6 +136,7 @@ def extract_bgr_frame_from_netcdf(
     返回 (BGR uint8 H×W×3, meta)。
     """
     a0, u0, v0, meta = extract_triple_scalar_fields_from_netcdf(nc_path, time_index=time_index)
-    rgb = np.stack([_norm_to_u8(a0), _norm_to_u8(u0), _norm_to_u8(v0)], axis=-1)
-    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    del u0, v0  # Fair-B0 3ch：推理输入为 ADT×3，与 config/eddy_v6_b0_fair 训练一致
+    bgr = fair_adt_triple_bgr_u8(a0)
+    meta = {**meta, "inference_stack": "fair_adt_x3", "inference_input_channels": 3}
     return bgr, meta

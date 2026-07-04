@@ -1,0 +1,93 @@
+# 论文表 5-2：多源 NetCDF 变量 → 内部标准字段（推理/展示用）
+# 路径相对仓库根；供 src/preprocess/nc_lazy_subset.py 与 POST /api/preprocess/subset
+
+version: 1
+
+coordinates:
+  time: [time, valid_time, datetime, Time]
+  lat: [lat, latitude, y, LAT]
+  lon: [lon, longitude, x, LON]
+
+variables:
+  time:
+    aliases: [time, valid_time, datetime]
+    meaning: 观测或预报时间索引
+    unit: datetime
+    use: 时间切片、结果时间轴
+
+  lat:
+    aliases: [lat, latitude, y]
+    meaning: 纬度坐标
+    unit: degN
+    use: 空间裁剪、网格定位
+
+  lon:
+    aliases: [lon, longitude, x]
+    meaning: 经度坐标
+    unit: degE
+    use: 空间裁剪、网格定位
+
+  adt:
+    aliases: [adt, ADT]
+    meaning: 绝对动力高度
+    unit: m
+    use: 涡旋识别三通道之一
+
+  sla:
+    aliases: [sla, SLA, ssh, SSH]
+    meaning: 海表高度异常（缺 ADT 时替代）
+    unit: m
+    use: 涡旋高度场备选
+
+  sst:
+    aliases: [sst, SST, sea_surface_temperature]
+    meaning: 海表温度
+    unit: "C or K"
+    use: 多变量演示（非独立水文模块）
+
+  u:
+    aliases: [ugos, UGOS, ssu, SSU, u]
+    meaning: 东西向流速
+    unit: m/s
+    use: 涡旋三通道、涡度派生
+
+  v:
+    aliases: [vgos, VGOS, ssv, SSV, v]
+    meaning: 南北向流速
+    unit: m/s
+    use: 涡旋三通道、涡度派生
+
+  u10:
+    aliases: [u10, U10, 10u, uwnd, u_wind]
+    meaning: 10m 东西向风速
+    unit: m/s
+    use: 风浪预测
+
+  v10:
+    aliases: [v10, V10, 10v, vwnd, v_wind]
+    meaning: 10m 南北向风速
+    unit: m/s
+    use: 合成风速
+
+  swh:
+    aliases: [swh, SWH, hs, wave_height, significant_wave_height]
+    meaning: 有效波高
+    unit: m
+    use: 风浪预测与异常
+
+  # 训练期伪标签/消融用，不进 3ch 推理 UI
+  zeta:
+    aliases: [relative_vorticity, vorticity, vor]
+    meaning: 相对涡度（或由 u/v 派生）
+    unit: 1/s
+    use: 训练标注辅助（论文不写推理输入）
+
+  ow:
+    aliases: [okubo_weiss, OW]
+    meaning: Okubo-Weiss 诊断量
+    unit: 1/s^2
+    use: 涡旋伪标签生成
+
+task_required:
+  eddy: [adt_or_sla, u, v]
+  windwave: [u10_or_wind, swh]

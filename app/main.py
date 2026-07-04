@@ -9,21 +9,19 @@ import streamlit as st
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+_APP_DIR = Path(__file__).resolve().parent
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
 
-from pages import eddy, hydro, metrics, offline_system, overview, realtime, result, typhoon_kb
-from services.hydro_inference_service import HydroInferenceService
-from services.inference_service import build_inference_service
+from pages import eddy, metrics, overview, result, typhoon_kb
 from services.metrics_service import MetricsService
 
-# 侧边栏展示顺序：总览 → 实时/离线系统 → 三模块工作台 → 台风知识库 → 指标看板
+# 单模块精简导航：无实时/离线/水文
 PAGES: tuple[str, ...] = (
     "总览",
-    "实时系统",
-    "离线系统",
     "涡旋识别",
-    "水文推理",
     "风浪预警",
-    "台风知识库",
+    "台风查询",
     "指标看板",
 )
 
@@ -40,8 +38,6 @@ def _init_state() -> None:
         "realtime_task_id": None,
         "realtime_last_result": None,
         "realtime_history": [],
-        "hydro_last_result": None,
-        "hydro_last_preset": "l2",
         "eddy_last_result": None,
         "nav_page": "总览",
     }
@@ -55,7 +51,10 @@ def _migrate_legacy_nav() -> None:
     mapping = {
         "上传": "涡旋识别",
         "结果": "风浪预警",
-        "实时输入": "实时系统",
+        "实时输入": "总览",
+        "实时系统": "总览",
+        "离线系统": "总览",
+        "水文推理": "总览",
     }
     if legacy in mapping:
         st.session_state["nav_page"] = mapping[legacy]
@@ -63,7 +62,7 @@ def _migrate_legacy_nav() -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="EddyFusion：面向涡旋—水文—风浪的海洋环境智能分析与预警平台",
+        page_title="海洋环境演示（涡旋 / 风浪 / 台风）",
         page_icon="🌊",
         layout="wide",
     )
@@ -76,30 +75,19 @@ def main() -> None:
     elif st.session_state.get("nav_page") not in PAGES:
         st.session_state["nav_page"] = "总览"
 
-    st.sidebar.title("EddyFusion")
-    st.sidebar.caption("面向涡旋—水文—风浪的海洋环境智能分析与预警平台")
-    st.sidebar.caption("导航：总览 / 实时·离线系统 / 三模块 / 台风知识库定调")
+    st.sidebar.title("导航")
     page = st.sidebar.radio("页面", PAGES, key="nav_page")
-    st.sidebar.caption(f"项目根目录: {Path(__file__).resolve().parents[1]}")
 
     metrics_service = MetricsService()
-    inference_service = build_inference_service(mode="real")
-    hydro_service = HydroInferenceService()
 
     if page == "总览":
         overview.render(metrics_service=metrics_service)
-    elif page == "水文推理":
-        hydro.render(service=hydro_service)
     elif page == "涡旋识别":
         eddy.render()
     elif page == "风浪预警":
         result.render()
-    elif page == "台风知识库":
+    elif page == "台风查询":
         typhoon_kb.render()
-    elif page == "实时系统":
-        realtime.render(inference_service=inference_service)
-    elif page == "离线系统":
-        offline_system.render()
     else:
         metrics.render(metrics_service=metrics_service)
 

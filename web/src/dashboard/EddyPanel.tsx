@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { eddyPreviewUrl, postEddyDualMp4 } from "../adapters/eddyDualMp4Adapter";
+import { eddyPreviewUrl } from "../adapters/eddyDualMp4Adapter";
+import { pollJobUntilDone, postCreateJob, type JobRecord } from "../adapters/jobAdapter";
+import { JobProgressBar } from "./JobProgressBar";
+import { type OceanMode, useOceanSession } from "./offlineSession";
+
+const EDDY_CHANNEL_MODE = "3ch" as const;
 
 type Props = {
+  mode: OceanMode;
   /** 仓库相对路径或白名单绝对路径 */
   ncPath: string;
-  /** 离线：上传成功后自动请求双路 MP4 */
+  /** 有 NC 后自动请求双路 MP4 */
   autoGenerate?: boolean;
 };
 
 /** 左栏：双路 MP4（底图 / 带框）+ 时间戳条；仅主路驱动同步，避免双路 timeupdate 互抢导致控件闪烁。 */
-export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
+export function EddyPanel({ mode, ncPath, autoGenerate = false }: Props) {
+  const { appendEddyJob, setEddyDetectionFrames } = useOceanSession(mode);
   const baseRef = useRef<HTMLVideoElement | null>(null);
   const annRef = useRef<HTMLVideoElement | null>(null);
   const syncingRef = useRef(false);
@@ -24,6 +31,7 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
   const [truncated, setTruncated] = useState(false);
   const [nFrames, setNFrames] = useState(0);
   const [barText, setBarText] = useState("请先选择 NC（上传或实时 latest）");
+  const [job, setJob] = useState<JobRecord | null>(null);
 
   const baseSrc = useMemo(() => (baseFile ? eddyPreviewUrl(baseFile) : ""), [baseFile]);
   const annSrc = useMemo(() => (annFile ? eddyPreviewUrl(annFile) : ""), [annFile]);
@@ -102,28 +110,95 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
     setTimeLabels([]);
     setNFrames(0);
     lastBarIdx.current = -1;
-    setBarText("编码中…");
+    setEddyDetectionFrames([]);
+
     try {
-      const out = await postEddyDualMp4({
+      setJob(null);
+      setBarText("已提交异步任务…");
+      const { job_id } = await postCreateJob({
+        type: "eddy_dual_mp4",
         nc_path: ncPath,
         fps: 1,
         max_frames: 120,
       });
-      setBaseFile(out.preview_base);
-      setAnnFile(out.preview_annotated);
+      const done = await pollJobUntilDone(job_id, (tick) => {
+        setJob(tick);
+        if (tick.phase === "base_ready" && tick.result) {
+          const r = tick.result as { preview_base?: string; fps?: number; time_labels?: string[]; n_frames?: number; truncated?: boolean };
+          if (r.preview_base) setBaseFile(r.preview_base);
+          setFps(Number(r.fps) || 1);
+          setTimeLabels(r.time_labels ?? []);
+          setTruncated(Boolean(r.truncated));
+          setNFrames(Number(r.n_frames) || 0);
+          setBarText("底图已就绪，YOLO 标注中…（可先播放）");
+        } else {
+          setBarText(tick.message ?? "处理中…");
+        }
+      });
+      const out = (done.result ?? {}) as {
+        fps?: number;
+        time_labels?: string[];
+        truncated?: boolean;
+        n_frames?: number;
+        preview_base?: string;
+        preview_annotated?: string;
+        detection_timeline?: { time?: string; peak_score?: number; max_conf?: number; mean_conf?: number; status?: string; count?: number }[];
+      };
       setFps(Number(out.fps) || 1);
       setTimeLabels(out.time_labels ?? []);
       setTruncated(Boolean(out.truncated));
       setNFrames(Number(out.n_frames) || 0);
+      if (out.preview_base) setBaseFile(out.preview_base);
+      if (out.preview_annotated) setAnnFile(out.preview_annotated);
       setBarText(out.time_labels?.[0] ?? "就绪");
       lastBarIdx.current = 0;
+      const timeline = (out as {
+        detection_timeline?: {
+          time?: string;
+          peak_score?: number;
+          max_conf?: number;
+          mean_conf?: number;
+          status?: string;
+          count?: number;
+        }[];
+      }).detection_timeline;
+      if (Array.isArray(timeline) && timeline.length) {
+        setEddyDetectionFrames(
+          timeline.map((r) => {
+            const maxC = Number(r.max_conf ?? r.peak_score);
+            const meanC = Number(r.mean_conf);
+            return {
+              time: String(r.time ?? ""),
+              peak_score: Number.isFinite(maxC) ? maxC : 0,
+              max_conf: Number.isFinite(maxC) ? maxC : 0,
+              mean_conf: Number.isFinite(meanC) ? meanC : 0,
+              status: (r.status === "hit" ? "hit" : "miss") as "hit" | "miss",
+              count: r.count,
+            };
+          }),
+        );
+      }
+      appendEddyJob({
+        ncLabel: ncPath,
+        status: "success",
+        nFrames: Number(out.n_frames) || 0,
+        channelMode: EDDY_CHANNEL_MODE,
+      });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
       setBarText("生成失败");
+      appendEddyJob({
+        ncLabel: ncPath,
+        status: "failed",
+        message: msg,
+        channelMode: EDDY_CHANNEL_MODE,
+      });
     } finally {
       setBusy(false);
+      setJob(null);
     }
-  }, [ncPath, autoGenerate]);
+  }, [ncPath, appendEddyJob, setEddyDetectionFrames]);
 
   useEffect(() => {
     setBaseFile(null);
@@ -136,7 +211,7 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
     if (!ncPath.trim()) {
       setBarText("请先选择 NC（上传或实时 latest）");
     } else if (autoGenerate) {
-      setBarText("将自动生成双路视频…");
+      setBarText("将按 3ch（ADT+ADT+ADT）自动生成双路视频…");
     } else {
       setBarText("可点击「生成双路视频」");
     }
@@ -163,9 +238,10 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
   }, [baseSrc, annSrc, playPair]);
 
   return (
-    <div className="ocean-dashboard__panel" style={{ height: "100%" }}>
+    <div className="ocean-dashboard__panel ocean-dashboard__panel--eddy">
       <h3 className="ocean-dashboard__panel-head">涡旋（双路视频）</h3>
       <div className="ocean-dashboard__eddy-toolbar">
+        <span className="ocean-dashboard__eddy-mode-badge">输入：3ch（ADT+ADT+ADT）</span>
         {!autoGenerate && (
           <button type="button" className="ocean-dashboard__eddy-btn" disabled={busy || !ncPath} onClick={() => void onBuild()}>
             {busy ? "生成中…" : "生成双路视频"}
@@ -179,22 +255,32 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
         )}
         {err && <span className="ocean-dashboard__eddy-err">{err}</span>}
       </div>
-      <div className="ocean-dashboard__timestamp-bar ocean-dashboard__timestamp-bar--eddy">{barText}</div>
-      <div className="ocean-dashboard__eddy-videos">
+      <JobProgressBar job={job} label="涡旋双路 MP4" />
+      <div className="ocean-dashboard__eddy-stage">
+        <div className="ocean-dashboard__timestamp-bar ocean-dashboard__timestamp-bar--eddy">{barText}</div>
+        <div className="ocean-dashboard__eddy-videos">
         <div className="ocean-dashboard__video-slot ocean-dashboard__video-slot--live ocean-dashboard__eddy-slot ocean-dashboard__eddy-slot--top">
           <div className="ocean-dashboard__video-slot-label">上 · 底图 / 流场（无检测框）· 播放控制</div>
           {baseSrc ? (
-            <video
-              ref={baseRef}
-              className="ocean-dashboard__eddy-video"
-              src={baseSrc}
-              controls
-              muted
-              playsInline
-              preload="auto"
-              onTimeUpdate={onBaseTimeUpdate}
-              onSeeked={onBaseSeeked}
-            />
+            <div className="ocean-dashboard__eddy-video-wrap">
+              <video
+                ref={baseRef}
+                className="ocean-dashboard__eddy-video"
+                src={baseSrc}
+                controls
+                muted
+                playsInline
+                preload="auto"
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget;
+                  if (v.videoWidth > 0 && v.videoHeight > 0) {
+                    v.parentElement?.style.setProperty("--eddy-ar", `${v.videoWidth} / ${v.videoHeight}`);
+                  }
+                }}
+                onTimeUpdate={onBaseTimeUpdate}
+                onSeeked={onBaseSeeked}
+              />
+            </div>
           ) : (
             <div className="ocean-dashboard__video-slot-placeholder">{busy ? "编码中…" : "生成后显示"}</div>
           )}
@@ -202,22 +288,25 @@ export function EddyPanel({ ncPath, autoGenerate = false }: Props) {
         <div className="ocean-dashboard__video-slot ocean-dashboard__video-slot--live ocean-dashboard__eddy-slot ocean-dashboard__eddy-slot--bottom">
           <div className="ocean-dashboard__video-slot-label">下 · 同帧检测框 / 掩码（与上同步，无独立控件）</div>
           {annSrc ? (
-            <video
-              ref={annRef}
-              className="ocean-dashboard__eddy-video ocean-dashboard__eddy-video--synced"
-              src={annSrc}
-              controls={false}
-              muted
-              playsInline
-              preload="auto"
-            />
+            <div className="ocean-dashboard__eddy-video-wrap">
+              <video
+                ref={annRef}
+                className="ocean-dashboard__eddy-video ocean-dashboard__eddy-video--synced"
+                src={annSrc}
+                controls={false}
+                muted
+                playsInline
+                preload="auto"
+              />
+            </div>
           ) : (
             <div className="ocean-dashboard__video-slot-placeholder">{busy ? "编码中…" : "生成后显示"}</div>
           )}
         </div>
+        </div>
       </div>
-      <p style={{ fontSize: 11, color: "#94a3b8", margin: "8px 0 0", flexShrink: 0 }}>
-        需 NC 含 time 维且 T≥2。请用<strong>上</strong>方播放器拖动进度；下路无控件以免双路控件争抢。服务端对长序列会提高时间步长并默认最多约 32 帧 YOLO 推理，可用环境变量 EDDY_DUAL_MAX_INFER_FRAMES 调整。
+      <p className="ocean-dashboard__eddy-footnote">
+        需 NC 含 time 维且 T≥2。抽帧：单次打开 NC + 批量 time 切片（EDDY_DUAL_EXTRACT_WORKERS 可调多进程）；预览帧上限默认 120（EDDY_DUAL_MAX_INFER_FRAMES）。
       </p>
     </div>
   );

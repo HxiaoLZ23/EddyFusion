@@ -8,50 +8,47 @@ from typing import Any
 
 import numpy as np
 
+from src.anomaly.inference import predict_wind_wave_from_series, smooth_baseline
 from src.preprocess.anomaly_dataset import extract_wind_wave_series_from_netcdf
 
 
 def _smooth_baseline(x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=np.float64)
-    if x.size < 3:
-        return x.copy()
-    k = np.array([0.25, 0.5, 0.25], dtype=np.float64)
-    y = np.convolve(x, k, mode="same")
-    y[0] = x[0]
-    y[-1] = x[-1]
-    return y
-
-
-NC_WIND_ASSESSMENT_NOTE = (
-    "NetCDF 格点：由 u10/v10 模长与有效波高（或可用变量推导）得到时序；"
-    "pred 为平滑基线，用于演示 obs−pred 残差与 DTW；非命题方评测口径。"
-)
+    """兼容旧引用；新代码请用 `src.anomaly.inference.smooth_baseline`。"""
+    return smooth_baseline(x)
 
 
 def extract_wind_wave_companion_from_netcdf(nc_path: str | Path) -> dict[str, Any] | None:
     """
     提取可 `apply_wind_wave_companion_to_eddy_result` 的字段；缺变量或时序过短则返回 None。
+    预测侧默认 WindWaveLSTM 滑窗一步预测；缺权重或序列不足时降级为平滑基线。
     """
     try:
         p = Path(nc_path).expanduser().resolve()
-        feat, meta = extract_wind_wave_series_from_netcdf(p)
+        feat, extract_meta = extract_wind_wave_series_from_netcdf(p)
         tlen = int(feat.shape[0])
         if tlen < 2:
             return None
-        wind = feat[:, 0].astype(np.float64)
-        wave = feat[:, 1].astype(np.float64)
-        wp = _smooth_baseline(wind)
-        hp = _smooth_baseline(wave)
-        return {
-            "demo_wind_observed": wind.tolist(),
-            "demo_wind_predicted": wp.tolist(),
-            "demo_wave_observed": wave.tolist(),
-            "demo_wave_predicted": hp.tolist(),
+        pred = predict_wind_wave_from_series(feat)
+        assessment_note = None
+        if pred.prediction_backend == "smooth_fallback":
+            assessment_note = (
+                f"风浪预测已降级为平滑基线（{pred.fallback_reason}）；"
+                "请同步 outputs/anomaly/best.pt 或上传更长时序 NC。"
+            )
+        out: dict[str, Any] = {
+            "demo_wind_observed": pred.wind_observed,
+            "demo_wind_predicted": pred.wind_predicted,
+            "demo_wave_observed": pred.wave_observed,
+            "demo_wave_predicted": pred.wave_predicted,
             "wind_wave_from_companion_npz": True,
             "wind_wave_from_netcdf": True,
-            "wind_wave_assessment_note": NC_WIND_ASSESSMENT_NOTE,
-            "wind_wave_nc_extract_meta": meta,
+            "wind_wave_nc_extract_meta": extract_meta,
+            "prediction_backend": pred.prediction_backend,
+            "wind_wave_prediction_meta": pred.meta,
         }
+        if assessment_note:
+            out["wind_wave_assessment_note"] = assessment_note
+        return out
     except Exception:
         return None
 
@@ -84,19 +81,26 @@ def build_eddy_result_from_windwave_netcdf(nc_path: str | Path) -> dict[str, Any
         raise ValueError("无法从该 NC 提取风浪时序（需 u10/v10 或有效波高等变量）。")
     timeline, peak = wind_timeline_and_peak_from_companion(companion)
     meta = companion.get("wind_wave_nc_extract_meta") or {}
+    pred_backend = companion.get("prediction_backend", "unknown")
     out: dict[str, Any] = {
         "status": "success",
         "module": "eddy",
         "mode": "real",
         "source_type": "netcdf_windwave",
-        "summary": f"已由本页上传 NC 构建风浪时序上下文（T={len(timeline)}），无需先跑涡旋。",
+        "summary": (
+            f"已由本页上传 NC 构建风浪时序（T={len(timeline)}，预测={pred_backend}），无需先跑涡旋。"
+        ),
         "timeline": timeline,
         "peak_score": peak,
         "preview_images": [],
         "geometries": [],
         "generated_at": int(time.time()),
-        "meta": {"nc_path": str(p), "wind_wave_extract": meta},
+        "meta": {
+            "nc_path": str(p),
+            "wind_wave_extract": meta,
+            "prediction_backend": pred_backend,
+            "wind_wave_prediction": companion.get("wind_wave_prediction_meta"),
+        },
     }
     out.update(companion)
     return out
-

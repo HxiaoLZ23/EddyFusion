@@ -1,0 +1,45 @@
+# 7ch 从首轮 best 低 lr 续训（随机初始化 + COCO 扩展均不如首轮；微调冲刺反超 3ch）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-enh7-ft"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy_enh7/dataset.yaml"
+  output_dir: "outputs/eddy_enh7"
+
+model:
+  backbone: "yolov8n-seg"
+  architecture_yaml: "yolov8n-seg.yaml"
+  input_size: [640, 640]
+  channels: 7
+  init_from_ckpt: "outputs/eddy_enh7/train/weights/best.pt"
+
+train:
+  device: "cuda"
+  epochs: 60
+  batch_size: 4
+  workers: 4
+  amp: false
+  pretrained: false
+  run_name: train_ft
+  seed: 42
+  lr0: 0.0008
+  lrf: 0.01
+  warmup_epochs: 3
+  cos_lr: true
+  close_mosaic: 10
+  patience: 60
+  mosaic: 0.1
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.03
+  degrees: 0.0
+  translate: 0.03
+  scale: 0.3
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_enh7/metrics_summary_ft.json"

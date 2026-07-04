@@ -14,7 +14,7 @@ from src.utils.config import resolve_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="构建台风知识库事件索引（json/csv + 检索键）")
+    parser = argparse.ArgumentParser(description="构建台风查询事件索引（json/csv + 检索键）")
     parser.add_argument("--source-csv", type=str, default="data/raw/typhoon/ibtracs/ibtracs.ALL.list.v04r01.csv")
     parser.add_argument("--source-name", type=str, default="IBTrACS")
     parser.add_argument("--source-version", type=str, default=datetime.now(timezone.utc).strftime("%Y%m%d"))

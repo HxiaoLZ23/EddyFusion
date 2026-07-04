@@ -86,6 +86,12 @@ def main() -> None:
 
     val_p = resolve_path(args.val_json)
     test_p = resolve_path(args.test_json)
+
+    def _repo_rel(p: Path) -> str:
+        try:
+            return p.resolve().relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            return p.as_posix()
     vm = _load_metrics(val_p)
     tm = _load_metrics(test_p)
 
@@ -131,8 +137,8 @@ def main() -> None:
             "- **评估命令**：",
             "  - `python -m src.anomaly.eval --config config/anomaly.yaml --ckpt outputs/anomaly/best.pt --split val`",
             "  - `python -m src.anomaly.eval --config config/anomaly.yaml --ckpt outputs/anomaly/best.pt --split test`",
-            f"- **JSON 来源**：`{val_p.as_posix()}`、`{test_p.as_posix()}`（由 `eval` 自动写出）",
-            "- **旧格式 checkpoint**：仅作加载兼容自检时 val MAE 可能极大，见 `docs/后续开发工作清单_未完成项与云端L0专项.md` §1.3.1。",
+            f"- **JSON 来源**：`{_repo_rel(val_p)}`、`{_repo_rel(test_p)}`（由 `eval` 自动写出）",
+            "- **旧格式 checkpoint**：仅作加载兼容自检时 val MAE 可能极大，见 `docs/开发规划/后续开发工作清单_未完成项与云端L0专项.md` §1.3.1。",
             "",
         ]
     )

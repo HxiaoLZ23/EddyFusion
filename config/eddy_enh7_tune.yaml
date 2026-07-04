@@ -1,0 +1,45 @@
+# 7ch 调优：COCO 首层扩展 + 与 3ch 本地对照对齐的 AMP/增强
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-enh7-tune"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy_enh7/dataset.yaml"
+  output_dir: "outputs/eddy_enh7"
+
+model:
+  backbone: "yolov8n-seg"
+  architecture_yaml: "yolov8n-seg.yaml"
+  input_size: [640, 640]
+  channels: 7
+  init_from_coco: true
+
+train:
+  device: "cuda"
+  epochs: 120
+  batch_size: 4
+  workers: 4
+  amp: true
+  pretrained: false
+  run_name: train_tune
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 25
+  patience: 150
+  mosaic: 0.2
+  mixup: 0.0
+  copy_paste: 0.15
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_enh7/metrics_summary_tune.json"

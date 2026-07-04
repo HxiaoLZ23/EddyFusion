@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-从多次 `python -m src.eddy.eval --splits val,test` 产出的 JSON 汇总 mask mAP50 表，
+从多次 `python -m src.eddy.eval --splits val,test` 产出的 JSON 汇总 mask 指标表，
 写入 submission/tables/ 供材料与论文对照。
+
+除 ``mask_map50`` 外，若 JSON 中存在则一并写出：
+``mask_map50_95``、``mask_map75``、``mask_mean_precision``、``mask_mean_recall``、``mask_mean_f1``。
 
 示例：
   python scripts/eddy_write_val_test_map_table.py \\
@@ -18,12 +21,23 @@ import csv
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.utils.config import resolve_path
+
+# 与 src.eddy.eval 写出的 ``metrics`` 子对象键一致（顺序即 CSV 列顺序）
+_EXTRA_FLOAT_KEYS: tuple[str, ...] = (
+    "mask_map50",
+    "mask_map50_95",
+    "mask_map75",
+    "mask_mean_precision",
+    "mask_mean_recall",
+    "mask_mean_f1",
+)
 
 
 def _aggregate_ablation_csv(csv_path: Path) -> dict[str, dict[str, float]]:
@@ -50,18 +64,27 @@ def _aggregate_ablation_csv(csv_path: Path) -> dict[str, dict[str, float]]:
     return out
 
 
-def _read_map50(json_path: Path) -> float | None:
+def _read_eddy_metrics(json_path: Path) -> dict[str, Any | None]:
     if not json_path.is_file():
-        return None
+        return {k: None for k in _EXTRA_FLOAT_KEYS}
     with json_path.open(encoding="utf-8") as f:
         data = json.load(f)
     m = data.get("metrics") or {}
-    v = m.get("mask_map50")
-    return float(v) if v is not None else None
+    out: dict[str, Any | None] = {}
+    for k in _EXTRA_FLOAT_KEYS:
+        v = m.get(k)
+        if v is None:
+            out[k] = None
+        else:
+            try:
+                out[k] = round(float(v), 6)
+            except (TypeError, ValueError):
+                out[k] = None
+    return out
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="聚合 eddy eval JSON 为 val/test mAP50 表")
+    ap = argparse.ArgumentParser(description="聚合 eddy eval JSON 为 val/test 分割指标表")
     ap.add_argument(
         "--row",
         dest="rows",
@@ -98,38 +121,56 @@ def main() -> None:
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
 
+    csv_cols: list[str] = ["experiment"]
+    for k in _EXTRA_FLOAT_KEYS:
+        csv_cols.append(f"val_{k}")
+        csv_cols.append(f"test_{k}")
+    csv_cols.extend(["val_json", "test_json"])
+
     rows_out: list[dict[str, str | float | None]] = []
     for name, val_p, test_p in parsed:
-        v50 = _read_map50(val_p)
-        t50 = _read_map50(test_p) if test_p is not None else None
-        rows_out.append(
-            {
-                "experiment": name,
-                "val_mask_map50": v50 if v50 is None else round(v50, 6),
-                "test_mask_map50": None if t50 is None else round(t50, 6),
-                "val_json": str(val_p),
-                "test_json": "" if test_p is None else str(test_p),
-            }
-        )
+        vm = _read_eddy_metrics(val_p)
+        tm = _read_eddy_metrics(test_p) if test_p is not None else {k: None for k in _EXTRA_FLOAT_KEYS}
+        row: dict[str, str | float | None] = {"experiment": name}
+        for k in _EXTRA_FLOAT_KEYS:
+            row[f"val_{k}"] = vm.get(k)
+            row[f"test_{k}"] = tm.get(k) if test_p is not None else None
+        row["val_json"] = str(val_p)
+        row["test_json"] = "" if test_p is None else str(test_p)
+        rows_out.append(row)
 
     with out_csv.open("w", encoding="utf-8-sig", newline="") as f:
-        fn = ["experiment", "val_mask_map50", "test_mask_map50", "val_json", "test_json"]
-        w = csv.DictWriter(f, fieldnames=fn)
+        w = csv.DictWriter(f, fieldnames=csv_cols)
         w.writeheader()
         w.writerows(rows_out)
 
+    def _cell(v: Any) -> str:
+        return "" if v is None else str(v)
+
     lines = [
-        "# 涡旋分割 mAP@0.5（Ultralytics seg，固定划分）",
+        "# 涡旋分割验证指标（Ultralytics YOLO-seg，固定划分）",
         "",
-        "| 实验 | val mask mAP50 | test mask mAP50 |",
-        "| --- | --- | --- |",
+        "列名前缀：`val_` / `test_`；指标键与 `metrics_summary_*.json` 内 `metrics` 一致。",
+        "",
+        "| 实验 | split | mAP50 | mAP50-95 | mAP75 | mean P | mean R | mean F1 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
+    metric_keys = [k for k in _EXTRA_FLOAT_KEYS if k != "mask_map50"]
     for r in rows_out:
-        vv = "" if r["val_mask_map50"] is None else str(r["val_mask_map50"])
-        tt = "" if r["test_mask_map50"] is None else str(r["test_mask_map50"])
-        lines.append(f"| {r['experiment']} | {vv} | {tt} |")
+        for split_label, prefix in (("val", "val_"), ("test", "test_")):
+            if split_label == "test" and not r.get("test_json"):
+                continue
+            cells = [_cell(r["experiment"]), split_label, _cell(r[f"{prefix}mask_map50"])]
+            for mk in metric_keys:
+                cells.append(_cell(r[f"{prefix}{mk}"]))
+            lines.append("| " + " | ".join(cells) + " |")
+
     lines.append("")
-    lines.append("说明：推理侧频域/unsharp、多尺度 TTA 的对照若未烘焙进验证集，`scripts/eddy_inference_ablate.py` 仅反映检测计数/置信度灵敏度；正式口径以本表 `eval` 为准。")
+    lines.append(
+        "说明：``mask_mean_precision`` / ``mask_mean_recall`` / ``mask_mean_f1`` 为 Ultralytics 对各类别指标的均值；"
+        "推理侧频域/unsharp、多尺度 TTA 若未烘焙进验证集，`scripts/eddy_inference_ablate.py` 仅反映检测计数/置信度灵敏度；"
+        "正式分割评测口径以本表 `eval` 为准。"
+    )
 
     if args.ablation_csv:
         ac = resolve_path(args.ablation_csv)

@@ -25,7 +25,7 @@ python -m uvicorn web_api.main:app --reload --host 0.0.0.0 --port 8000
 
 - `POST /api/offline/nc` — multipart 字段 `files`
 - `GET /api/realtime/latest`
-- `POST /api/hydro/heatmap` — 返回 `lons`/`lats`/`values`（热力图）+ `curve_data` / `feature_names`（与 `HydroInferenceService.run` 同源）；请求体见 `docs/策略_第二套前端与水文预测热力图.md` §3
+- `POST /api/hydro/heatmap` — 返回 `lons`/`lats`/`values`（热力图）+ `curve_data` / `feature_names`（与 `HydroInferenceService.run` 同源）；请求体见 `docs/开发规划/策略_第二套前端与水文预测热力图.md` §3
 - `POST /api/hydro/meta` — 缓冲 `T_hat` / `T_need`
 
 ## CORS

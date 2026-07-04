@@ -1,32 +1,50 @@
-# EddyFusion — 涡旋模块（YOLOv8-seg 等，Level 2 基线先跑通）
+# EddyFusion — 涡旋默认 Fair 线（V6 Phase B0）
+# 与 config/eddy_v6_b0_fair.yaml 同口径：355/356 stem、[norm(ADT(t))]×3、OW P24
+# 历史 cloud_fair 见 config/eddy_cloud_fair.yaml（归档对照，非默认）
 meta:
   project: "EddyFusion"
   module: "eddy"
-  version: "1.0"
+  version: "1.0-v6-b0-fair-default"
   level: 2   # 0/1/2/3 含义见《A09-最终技术方案与降级策略》
   seed: 42
 
 paths:
-  dataset_yaml: "data/processed/eddy/dataset.yaml"   # ultralytics 数据描述，就绪后生成
-  output_dir: "outputs/eddy"
+  dataset_yaml: "AutoDL/dataset/eddy_v6_b0_fair/dataset.yaml"
+  output_dir: "outputs/eddy_v6_b0_fair"
 
 model:
-  backbone: "yolov8n-seg"   # 可按算力调整 n/s/m
+  backbone: "yolov8n-seg"
   input_size: [640, 640]
-  channels: 3               # 多通道物理场时改为实际通道数
+  channels: 3
 
 train:
   device: "cuda"
-  epochs: 100
-  batch_size: 8
+  epochs: 50
+  batch_size: 4
   workers: 4
   amp: true
-  pretrained: true   # dataset 为 3 通道时使用 COCO 预训练权重；8ch npy 时 train.py 会强制 pretrained=False
+  pretrained: true
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
 
 eval:
-  metrics_file: "outputs/eddy/metrics_summary.json"
+  metrics_file: "outputs/eddy_v6_b0_fair/metrics_summary.json"
   save_preds: true
 
 # 前端/演示推理增强（非训练超参，见 app/services/eddy_demo_service.py）
 # frequency_mode: none | unsharp | laplacian
-# multiscale_tta: false | true  （多 imgsz「任一检测」仅作灵敏度提示）
+# multiscale_tta: false | true

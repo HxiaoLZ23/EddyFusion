@@ -1,7 +1,7 @@
 ﻿metric,key,val,test
-MAE 风速,mae_wind,4.430597,0.591457
-MAE 波高,mae_wave,5.863316,0.345821
-MAE 平均,mae_avg,5.146956,0.468639
-RMSE 风速,rmse_wind,5.473613,0.786927
-RMSE 波高,rmse_wave,7.020177,0.479556
-RMSE 平均,rmse_avg,6.246895,0.633242
+MAE 风速,mae_wind,0.050069,0.049546
+MAE 波高,mae_wave,0.008946,0.008770
+MAE 平均,mae_avg,0.029508,0.029158
+RMSE 风速,rmse_wind,0.064351,0.062827
+RMSE 波高,rmse_wave,0.011265,0.011022
+RMSE 平均,rmse_avg,0.037808,0.036924

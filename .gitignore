@@ -1,5 +1,17 @@
 # 阶段交接与本地记录（见 AI_DEV_REQUIREMENTS.md）
 开发阶段文档/
+.cursor/
+
+# 本地临时补丁/草稿
+_last_*.txt
+submission/tables/*.log
+submission/tables/system_*_server.log
+submission/tables/eddy_v6_b0_*.log
+submission/_thesis_*.md
+submission/_weekly_journal_*.txt
+
+# 毕业设计专用文稿（本地撰写，不提交远程）
+毕业设计材料/
 
 # Python
 __pycache__/
@@ -9,6 +21,7 @@ __pycache__/
 .venv/
 venv/
 .env
+config/dashscope.local.json
 .pytest_cache/
 .coverage
 htmlcov/
@@ -80,6 +93,9 @@ app/data/hydro_nc_cache/*
 # Streamlit / 运行时生成的预览帧（量大，勿提交）
 app/data/eddy_preview/*
 !app/data/eddy_preview/.gitkeep
+
+# Streamlit 运行时报告缓存
+app/data/reports/
 
 # 前端（Vite）依赖
 web/node_modules/

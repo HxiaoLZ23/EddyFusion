@@ -8,6 +8,7 @@ const ROTATE_MS = 2000;
 type Props = {
   curveData: CurveDataMap | null;
   featureNames: string[];
+  featureUnits?: Record<string, string>;
   /** 缓冲不足：曲线区虚化 + 蒙层（与规划 §4 一致） */
   insufficient: boolean;
 };
@@ -47,7 +48,7 @@ type ChartGeom = {
   sy: (y: number) => number;
 };
 
-export function HydroRotatingCurves({ curveData, featureNames, insufficient }: Props) {
+export function HydroRotatingCurves({ curveData, featureNames, featureUnits, insufficient }: Props) {
   const names = useMemo(() => featureNames.filter((n) => curveData?.[n]?.length), [featureNames, curveData]);
   const [idx, setIdx] = useState(0);
   const [hoverPause, setHoverPause] = useState(false);
@@ -265,7 +266,8 @@ export function HydroRotatingCurves({ curveData, featureNames, insufficient }: P
               textAnchor="middle"
               transform={`rotate(-90, 18, ${chart.padT + (chart.h - chart.padT - chart.padB) / 2})`}
             >
-              区域均值（{current}）
+              区域均值（{current}
+              {featureUnits?.[current] ? ` · ${featureUnits[current]}` : ""}）
             </text>
             <polyline fill="none" stroke="#0369a1" strokeWidth={2.2} points={chart.lineGt} />
             <polyline fill="none" stroke="#ea580c" strokeWidth={2.2} strokeDasharray="5 3" points={chart.linePd} />

@@ -1,0 +1,48 @@
+# 涡旋 7 通道物理增强（无 Mask）：BGR + ζ + OW + GradX(ADT) + GradY(ADT)
+# 用于回应「Mask 输入 shortcut」质疑；与 eddy_enh（8ch 历史）分目录存放。
+#
+# 云端一条龙见：scripts/run_eddy_cloud_enh7.sh
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-enh7"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy_enh7/dataset.yaml"
+  # 本地训练用 outputs/；云端可改为 AutoDL/outputs/eddy_enh7
+  output_dir: "outputs/eddy_enh7"
+
+model:
+  backbone: "yolov8n-seg"
+  architecture_yaml: "yolov8n-seg.yaml"
+  input_size: [640, 640]
+  channels: 7
+
+train:
+  device: "cuda"
+  epochs: 100
+  batch_size: 4
+  workers: 4
+  amp: false
+  pretrained: true
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_enh7/metrics_summary.json"

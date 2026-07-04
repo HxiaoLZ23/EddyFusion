@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "generated_at": 1780660412,
+  "paper_figures": [
+    "fig4-4",
+    "fig5-10",
+    "fig5-11",
+    "fig5-12",
+    "fig5-13",
+    "fig5-14"
+  ],
+  "screenshots": [
+    {
+      "name": "fig4-4_system_main_prototype",
+      "caption": "图4-4 系统主要界面原型图",
+      "status": "passed",
+      "path": "submission/figures/fig4-4_system_main_prototype.png",
+      "seconds": 2.302
+    },
+    {
+      "name": "fig5-10_system_main_runtime",
+      "caption": "图5-10 系统主界面运行效果图",
+      "status": "passed",
+      "path": "submission/figures/fig5-10_system_main_runtime.png",
+      "seconds": 0.156
+    },
+    {
+      "name": "fig5-11_ocean_field_visualization",
+      "caption": "图5-11 海洋环境场可视化界面",
+      "status": "passed",
+      "path": "submission/figures/fig5-11_ocean_field_visualization.png",
+      "seconds": 0.291
+    },
+    {
+      "name": "fig5-12_eddy_detection_result",
+      "caption": "图5-12 涡旋识别结果展示界面",
+      "status": "passed",
+      "path": "submission/figures/fig5-12_eddy_detection_result.png",
+      "seconds": 0.288
+    },
+    {
+      "name": "fig5-13_windwave_forecast_warning",
+      "caption": "图5-13 风浪预测与异常预警展示界面",
+      "status": "passed",
+      "path": "submission/figures/fig5-13_windwave_forecast_warning.png",
+      "seconds": 0.106
+    },
+    {
+      "name": "fig5-14_report_export",
+      "caption": "图5-14 分析报告导出界面",
+      "status": "passed",
+      "path": "submission/figures/fig5-14_report_export.png",
+      "seconds": 3.107
+    }
+  ]
+}

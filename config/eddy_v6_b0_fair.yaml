@@ -1,0 +1,44 @@
+# V6 Phase B0 — Fair baseline [norm(ADT(t))]×3；2018 355 train / 2024 356 val
+# 默认入口与 config/eddy.yaml 同口径（本文件供 B0 实验脚本显式引用）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-v6-b0-fair"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "AutoDL/dataset/eddy_v6_b0_fair/dataset.yaml"
+  output_dir: "outputs/eddy_v6_b0_fair"
+
+model:
+  backbone: "yolov8n-seg"
+  input_size: [640, 640]
+  channels: 3
+
+train:
+  device: "cuda"
+  epochs: 50
+  batch_size: 4
+  workers: 4
+  amp: true
+  pretrained: true
+  run_name: train
+  seed: 42
+  lr0: 0.0025
+  lrf: 0.01
+  warmup_epochs: 12
+  cos_lr: true
+  close_mosaic: 20
+  patience: 150
+  mosaic: 0.25
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.05
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.4
+  fliplr: 0.5
+
+eval:
+  metrics_file: "outputs/eddy_v6_b0_fair/metrics_summary.json"

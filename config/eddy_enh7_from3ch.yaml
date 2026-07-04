@@ -1,0 +1,46 @@
+# 7ch 从本地 3ch best 扩展首层微调（保留已学涡旋特征 + 接入物理通道）
+meta:
+  project: "EddyFusion"
+  module: "eddy"
+  version: "1.0-enh7-from3ch"
+  level: 2
+  seed: 42
+
+paths:
+  dataset_yaml: "data/processed/eddy_enh7/dataset.yaml"
+  output_dir: "outputs/eddy_enh7"
+
+model:
+  backbone: "yolov8n-seg"
+  architecture_yaml: "yolov8n-seg.yaml"
+  input_size: [640, 640]
+  channels: 7
+  init_from_baseline: "outputs/eddy/train_local/weights/best.pt"
+
+train:
+  device: "cuda"
+  epochs: 80
+  batch_size: 4
+  workers: 4
+  amp: true
+  pretrained: false
+  run_name: train_from3ch
+  seed: 42
+  lr0: 0.001
+  lrf: 0.01
+  warmup_epochs: 5
+  cos_lr: true
+  close_mosaic: 15
+  patience: 80
+  mosaic: 0.15
+  mixup: 0.0
+  copy_paste: 0.0
+  label_smoothing: 0.03
+  degrees: 0.0
+  translate: 0.05
+  scale: 0.35
+  fliplr: 0.5
+  freeze: 10
+
+eval:
+  metrics_file: "outputs/eddy_enh7/metrics_summary_from3ch.json"

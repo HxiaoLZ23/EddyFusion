@@ -81,7 +81,7 @@ def main() -> None:
     print(f"wrote {out}")
 
     md = resolve_path("data/processed/anomaly/typhoon_kb/demo_cases.md")
-    lines = ["# 台风知识库联动案例", ""]
+    lines = ["# 台风查询联动案例", ""]
     for c in cases:
         lines.append(f"## {c['case_id']}")
         q = c["query"]

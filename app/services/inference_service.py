@@ -22,7 +22,7 @@ class InferenceInput:
 @dataclass
 class InferenceService:
     mode: str = "mock"
-    eddy_model_path: str = "outputs/eddy/best.pt"
+    eddy_model_path: str = "outputs/eddy_v6_b0_fair/best.pt"
     eddy_conf: float = 0.25
     eddy_iou: float = 0.45
     eddy_max_frames: int = 120
@@ -95,7 +95,7 @@ class InferenceService:
 def build_inference_service(
     mode: str = "real",
     *,
-    eddy_model_path: str = "outputs/eddy/best.pt",
+    eddy_model_path: str = "outputs/eddy_v6_b0_fair/best.pt",
     eddy_conf: float = 0.25,
     eddy_iou: float = 0.45,
     eddy_max_frames: int = 120,

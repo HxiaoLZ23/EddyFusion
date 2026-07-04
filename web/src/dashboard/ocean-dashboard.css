@@ -46,6 +46,38 @@
   color: #0369a1;
 }
 
+.ocean-dashboard__channel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin: 0;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.ocean-dashboard__channel-toggle legend {
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.ocean-dashboard__channel-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ocean-dashboard__channel-toggle input {
+  margin: 0;
+}
+
 .ocean-dashboard__main {
   display: grid;
   grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
@@ -56,6 +88,9 @@
 
 .ocean-dashboard__eddy {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 @media (max-width: 960px) {
@@ -86,9 +121,10 @@
 
 .ocean-dashboard__right {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .ocean-dashboard__panel-body {
@@ -131,24 +167,57 @@
   color: #b45309;
 }
 
+.ocean-dashboard__eddy-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .ocean-dashboard__eddy-err {
   font-size: 12px;
   color: #b91c1c;
   max-width: 100%;
 }
 
+.ocean-dashboard__panel--eddy {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__eddy-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ocean-dashboard__panel--eddy .ocean-dashboard__eddy-stage {
+  max-width: min(100%, 640px);
+}
+
 .ocean-dashboard__eddy-videos {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 8px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .ocean-dashboard__eddy-slot {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .ocean-dashboard__video-slot {
@@ -170,26 +239,47 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  padding: 8px;
-  gap: 6px;
-}
-
-/* 上路保留原生控件高度，避免控件压住下路；下路占剩余高度（覆盖 .video-slot 的 flex:1 均分） */
-.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top {
-  flex: 0 0 auto;
-  min-height: 0;
-  padding-bottom: 48px;
+  padding: 6px;
+  gap: 4px;
+  border-style: solid;
+  border-color: #e2e8f0;
+  background: #fff;
   box-sizing: border-box;
 }
 
+/* 固定视频框高度，避免 L1 全宽时时间轴与槽位被横向拉扁 */
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top,
 .ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--bottom {
-  flex: 1 1 0;
-  min-height: 120px;
+  flex: 0 0 auto;
+  height: clamp(140px, 28vh, 240px);
+  min-height: 140px;
+  max-height: 240px;
+  padding: 6px;
 }
 
-.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top .ocean-dashboard__eddy-video,
-.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--bottom .ocean-dashboard__eddy-video {
-  max-height: min(28vh, 240px);
+.ocean-dashboard__video-slot--live.ocean-dashboard__eddy-slot--top {
+  padding-bottom: 4px;
+}
+
+.ocean-dashboard__eddy-video-wrap {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0f172a;
+  border-radius: 6px;
+}
+
+.ocean-dashboard__eddy-video-wrap .ocean-dashboard__eddy-video {
+  flex: none;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
 }
 
 .ocean-dashboard__video-slot-label {
@@ -201,8 +291,8 @@
 }
 
 .ocean-dashboard__video-slot-placeholder {
-  flex: 1;
-  min-height: 120px;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -211,12 +301,9 @@
 }
 
 .ocean-dashboard__eddy-video {
-  width: 100%;
-  max-height: min(38vh, 360px);
   object-fit: contain;
-  background: #0f172a;
-  border-radius: 6px;
   vertical-align: top;
+  display: block;
 }
 
 .ocean-dashboard__eddy-video--synced {
@@ -233,6 +320,18 @@
   padding: 10px 12px;
   margin-bottom: 10px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__eddy-footnote {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 8px 0 0;
+  flex-shrink: 0;
+  max-width: min(100%, 640px);
 }
 
 .ocean-dashboard__timestamp-bar {
@@ -304,9 +403,12 @@
 }
 
 .ocean-dashboard__panel-body--windwave {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ocean-dashboard__windwave-body-lead {
@@ -383,4 +485,1002 @@
   .ocean-dashboard__hydro-col--curve {
     max-width: none;
   }
+}
+
+/* —— Level 1 二级页（规划 §6）—— */
+
+.ocean-dashboard__stage {
+  position: relative;
+  min-height: max(480px, calc(100vh - 220px));
+}
+
+.ocean-dashboard__home-layer {
+  min-height: inherit;
+}
+
+.ocean-dashboard__home-layer--parked {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__stage--l1 .ocean-dashboard__main--l1 {
+  position: relative;
+  z-index: 1;
+  min-height: max(480px, calc(100vh - 220px));
+}
+
+.ocean-dashboard__stage--l1-eddy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.ocean-dashboard__home-layer--l1-eddy .ocean-dashboard__main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ocean-dashboard__home-layer--l1-eddy .ocean-dashboard__right {
+  display: none;
+}
+
+.ocean-dashboard__home-layer--l1-eddy .ocean-dashboard__eddy {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ocean-dashboard__eddy-inner {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  min-height: 0;
+  gap: 0;
+  align-items: stretch;
+}
+
+.ocean-dashboard__home-layer--l1-eddy .ocean-dashboard__eddy-inner .ocean-dashboard__l1-chrome {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+
+.ocean-dashboard__main--l1-eddy-chrome {
+  width: 44px;
+  min-height: 0;
+  grid-template-columns: 1fr;
+}
+
+.ocean-dashboard__l1-back-row--overlay {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.ocean-dashboard__main--l1 {
+  transition: grid-template-columns 0.35s ease, gap 0.35s ease;
+}
+
+.ocean-dashboard__main--l1-eddy {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ocean-dashboard__main--l1-eddy .ocean-dashboard__right {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__main--l1-hydro,
+.ocean-dashboard__main--l1-windwave {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.ocean-dashboard__main--l1-hydro .ocean-dashboard__right--l1-hydro {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
+  min-height: 0;
+}
+
+.ocean-dashboard__right--l1-windwave {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  grid-template-rows: unset;
+}
+
+.ocean-dashboard__main--l1-windwave .ocean-dashboard__l1-strip-col {
+  width: 44px;
+}
+
+.ocean-dashboard__l1-strip-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 44px;
+  flex-shrink: 0;
+  align-self: stretch;
+  justify-content: flex-start;
+  padding-top: 2px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ocean-dashboard__collapsed-strip {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px;
+  font-size: 10px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.ocean-dashboard__collapsed-strip--tab {
+  min-height: 72px;
+  max-height: 100px;
+}
+
+.ocean-dashboard__collapsed-strip--bar {
+  flex-direction: row;
+  width: 100%;
+  min-height: 36px;
+  max-height: 40px;
+  padding: 4px 10px;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ocean-dashboard__collapsed-strip--bar .ocean-dashboard__collapsed-strip-title {
+  writing-mode: horizontal-tb;
+  letter-spacing: 0.02em;
+}
+
+.ocean-dashboard__collapsed-strip--bar .ocean-dashboard__collapsed-strip-sub {
+  display: none;
+}
+
+.ocean-dashboard__collapsed-strip:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.ocean-dashboard__collapsed-strip-title {
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.08em;
+}
+
+.ocean-dashboard__collapsed-strip-sub {
+  font-size: 9px;
+  opacity: 0.88;
+  writing-mode: horizontal-tb;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+.ocean-dashboard__l1-chrome {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: box-shadow 0.32s ease;
+}
+
+.ocean-dashboard__l1-chrome > .ocean-dashboard__panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.ocean-dashboard__l1-back-row {
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+.ocean-dashboard__l1-back {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.ocean-dashboard__eddy-l1-wrap {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.ocean-dashboard__eddy-l1-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ocean-dashboard__eddy-drawer {
+  flex: 1 1 0;
+  min-width: min(360px, 42%);
+  max-width: none;
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__eddy-drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.ocean-dashboard__eddy-drawer-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ocean-dashboard__eddy-drawer-section .ocean-dashboard__eddy-drawer-table-wrap {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.ocean-dashboard__eddy-drawer-section-title {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ocean-dashboard__eddy-drawer-table-wrap--short {
+  max-height: none;
+}
+
+.ocean-dashboard__eddy-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ocean-dashboard__eddy-drawer-close {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.ocean-dashboard__eddy-drawer-caption {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.ocean-dashboard__eddy-drawer-table-wrap {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.ocean-dashboard__eddy-drawer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.ocean-dashboard__eddy-drawer-table th,
+.ocean-dashboard__eddy-drawer-table td {
+  border: 1px solid #e2e8f0;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.ocean-dashboard__eddy-drawer-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ocean-dashboard__eddy-status {
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ocean-dashboard__eddy-status--success {
+  color: #15803d;
+}
+
+.ocean-dashboard__eddy-status--failed {
+  color: #b91c1c;
+}
+
+.ocean-dashboard__eddy-status--running {
+  color: #0369a1;
+}
+
+.ocean-dashboard__eddy-drawer-foot {
+  font-size: 10px;
+  color: #94a3b8;
+  margin: 8px 0 0;
+}
+
+.ocean-dashboard__panel--l1-expanded {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ocean-dashboard__panel--l1-expanded .ocean-dashboard__l1-hydro {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ocean-dashboard__panel--l1-expanded.ocean-dashboard__panel--windwave {
+  display: flex;
+  flex-direction: column;
+}
+
+.ocean-dashboard__panel--l1-expanded.ocean-dashboard__panel--windwave .ocean-dashboard__l1-windwave {
+  flex: 1;
+  min-height: 0;
+}
+
+.ocean-dashboard__l1-hydro-title,
+.ocean-dashboard__l1-windwave-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ocean-dashboard__l1-hydro-note,
+.ocean-dashboard__l1-muted {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0 0 10px;
+}
+
+.ocean-dashboard__l1-hydro-empty {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.ocean-dashboard__l1-hydro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.ocean-dashboard__l1-hydro-cell {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+
+.ocean-dashboard__l1-hydro-cell-head {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #334155;
+}
+
+.ocean-dashboard__l1-hydro-viz {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ocean-dashboard__l1-hydro-curves-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ocean-dashboard__l1-hydro-heatmap-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.ocean-dashboard__l1-hydro-heatmap-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.ocean-dashboard__l1-hydro-heatmap-map {
+  min-height: 280px;
+}
+
+.ocean-dashboard__l1-windwave {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__l1-windwave-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ocean-dashboard__l1-windwave-head .ocean-dashboard__l1-windwave-title {
+  margin: 0;
+}
+
+.ocean-dashboard__l1-windwave-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__l1-windwave-report {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.ocean-dashboard__l1-windwave-report h5 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__l1-windwave-report .ocean-dashboard__l1-windwave-pre {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.ocean-dashboard__l1-windwave-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ocean-dashboard__l1-windwave-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+.ocean-dashboard__l1-windwave-card-head h5 {
+  margin: 0;
+}
+
+.ocean-dashboard__l1-windwave-card--llm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ocean-dashboard__llm-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: min(52vh, 520px);
+  padding-right: 4px;
+}
+
+.ocean-dashboard__l1-windwave-card--kb {
+  flex-shrink: 0;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.ocean-dashboard__l1-windwave-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.ocean-dashboard__l1-windwave-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+  min-height: 120px;
+}
+
+.ocean-dashboard__l1-windwave-card h5 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.ocean-dashboard__l1-windwave-pre {
+  margin: 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.ocean-dashboard__l1-windwave-note {
+  font-size: 11px;
+  color: #334155;
+  margin: 8px 0 0;
+}
+
+.ocean-dashboard__l1-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #0369a1;
+}
+
+.ocean-dashboard__hydro-buffer {
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ocean-dashboard__hydro-buffer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+
+.ocean-dashboard__hydro-buffer-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.ocean-dashboard__hydro-buffer-err {
+  font-size: 12px;
+  color: #b91c1c;
+  margin: 4px 0;
+}
+
+.ocean-dashboard__hydro-buffer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.ocean-dashboard__hydro-buffer-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ocean-dashboard__hydro-buffer-list button {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.ocean-dashboard__llm-sections {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
+  margin-top: 8px;
+}
+
+.ocean-dashboard__llm-sections p {
+  margin: 0 0 8px;
+}
+
+.ocean-dashboard__llm-actions {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 1100px) {
+  .ocean-dashboard__l1-windwave-body {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .ocean-dashboard__l1-windwave-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .ocean-dashboard__l1-windwave-side .ocean-dashboard__l1-windwave-card {
+    flex: 1 1 220px;
+  }
+}
+
+@media (max-width: 960px) {
+  .ocean-dashboard__stage--l1-eddy {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .ocean-dashboard__main--l1-eddy,
+  .ocean-dashboard__main--l1-hydro,
+  .ocean-dashboard__main--l1-windwave {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(200px, 1fr);
+  }
+
+  .ocean-dashboard__main--l1-eddy .ocean-dashboard__right {
+    flex-direction: row;
+    width: 100%;
+    height: auto;
+  }
+
+  .ocean-dashboard__l1-strip-col {
+    flex-direction: row;
+    width: 100%;
+    max-height: none;
+  }
+
+  .ocean-dashboard__collapsed-strip--tab {
+    flex: 1 1 0;
+    min-height: 40px;
+    max-height: 44px;
+    flex-direction: row;
+    padding: 4px 8px;
+  }
+
+  .ocean-dashboard__collapsed-strip-title {
+    writing-mode: horizontal-tb;
+  }
+
+  .ocean-dashboard__collapsed-strip-sub {
+    display: none;
+  }
+
+  .ocean-dashboard__eddy-l1-wrap {
+    flex-direction: column;
+  }
+
+  .ocean-dashboard__eddy-inner {
+    flex-direction: column;
+  }
+
+  .ocean-dashboard__eddy-drawer {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+    max-height: 280px;
+  }
+
+  .ocean-dashboard__eddy-drawer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ocean-dashboard__l1-hydro-curves-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 台风查询一级区块（替代隐藏的水文位） */
+.ocean-dashboard__panel--typhoon {
+  min-height: 0;
+}
+
+.ocean-dashboard__panel-head--inline {
+  margin: 0;
+}
+
+.ocean-dashboard__typhoon-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__typhoon-go {
+  font-size: 12px;
+  font-weight: 700;
+  color: #047857;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #6ee7b7;
+  background: #ecfdf5;
+  white-space: nowrap;
+}
+
+.ocean-dashboard__typhoon-go:hover {
+  background: #d1fae5;
+}
+
+.ocean-dashboard__typhoon-status-row {
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.ocean-dashboard__typhoon-status {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.ocean-dashboard__typhoon-status--ok {
+  color: #047857;
+}
+
+.ocean-dashboard__typhoon-status--warn {
+  color: #b45309;
+}
+
+.ocean-dashboard__typhoon-status--err {
+  color: #b91c1c;
+}
+
+.ocean-dashboard__panel-body--typhoon {
+  font-size: 12px;
+}
+
+.ocean-dashboard__typhoon-lead {
+  margin: 0 0 8px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.ocean-dashboard__typhoon-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.ocean-dashboard__typhoon-item {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.ocean-dashboard__typhoon-item-id {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.ocean-dashboard__typhoon-item-name {
+  color: #0369a1;
+}
+
+.ocean-dashboard__typhoon-item-meta {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.ocean-dashboard__typhoon-item-level {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ocean-dashboard__typhoon-empty,
+.ocean-dashboard__typhoon-note,
+.ocean-dashboard__typhoon-hint {
+  margin: 0 0 6px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.ocean-dashboard__typhoon-hint code {
+  font-size: 10px;
+}
+
+.ocean-dashboard__task-strip {
+  display: grid;
+  grid-template-columns: 1.1fr 1.3fr 1.1fr;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+
+.ocean-dashboard__task-strip > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #eff6ff, #ffffff);
+  color: #334155;
+  font-size: 12px;
+}
+
+.ocean-dashboard__task-strip strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.ocean-dashboard__task-strip span {
+  line-height: 1.45;
+}
+
+.ocean-dashboard__task-strip button {
+  margin-right: 6px;
+  margin-top: 2px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #bfdbfe;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ocean-dashboard__task-strip button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.ocean-dashboard__windwave-chart {
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.ocean-dashboard__windwave-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.ocean-dashboard__windwave-chart-head span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.ocean-dashboard__windwave-chart svg {
+  width: 100%;
+  max-height: 170px;
+  display: block;
+}
+
+.ocean-dashboard__windwave-chart rect {
+  fill: #f8fafc;
+  stroke: #e2e8f0;
+}
+
+.ocean-dashboard__windwave-chart polyline {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ocean-dashboard__windwave-chart .wind-obs {
+  stroke: #2563eb;
+  color: #2563eb;
+}
+
+.ocean-dashboard__windwave-chart .wind-pred {
+  stroke: #60a5fa;
+  color: #60a5fa;
+  stroke-dasharray: 6 4;
+}
+
+.ocean-dashboard__windwave-chart .wave-obs {
+  stroke: #ea580c;
+  color: #ea580c;
+}
+
+.ocean-dashboard__windwave-chart .wave-pred {
+  stroke: #fdba74;
+  color: #c2410c;
+  stroke-dasharray: 6 4;
+}
+
+.ocean-dashboard__windwave-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.ocean-dashboard__windwave-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  background: currentColor;
+}
+
+.ocean-dashboard__windwave-chart-empty {
+  margin: 8px 0;
+  color: #64748b;
+  font-size: 12px;
 }

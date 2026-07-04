@@ -21,7 +21,7 @@ paths:
 data:
   input_features: ["temp", "sal", "u", "v"]
   target_features: ["temp", "sal", "u", "v"]
-  # 命题方：输入 [t−n,…,t]、输出未来 72 小时；hourly 时 output_steps=72（见 docs/命题方数据集说明.md）
+  # 命题方：输入 [t−n,…,t]、输出未来 72 小时；hourly 时 output_steps=72（见 docs/架构与方法/命题方数据集说明.md）
   input_days: 7
   input_steps: 168
   output_hours: [72]

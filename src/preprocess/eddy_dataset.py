@@ -31,18 +31,31 @@ def _raw_eddy_dir(data_cfg: dict) -> Path:
 
 def inspect_eddy_netcdf(nc_path: Path) -> None:
     try:
-        import xarray as xr
+        import xarray  # noqa: F401, PLC0415
     except ImportError as e:
         raise SystemExit("需要安装 xarray（见 requirements.txt）才能 --inspect") from e
-    ds = xr.open_dataset(nc_path)
-    print(f"文件: {nc_path}")
-    print("dims:", dict(ds.sizes))
-    print("data_vars:", list(ds.data_vars))
-    print("coords:", list(ds.coords))
-    for name in list(ds.data_vars)[:25]:
-        v = ds[name]
-        print(f"  {name}: dims={v.dims} shape={v.shape} dtype={v.dtype}")
-    ds.close()
+
+    from src.utils.xarray_nc_open import open_xr_dataset_compat
+
+    tmp = None
+    ds = None
+    try:
+        ds, tmp = open_xr_dataset_compat(nc_path)
+        print(f"文件: {nc_path}")
+        print("dims:", dict(ds.sizes))
+        print("data_vars:", list(ds.data_vars))
+        print("coords:", list(ds.coords))
+        for name in list(ds.data_vars)[:25]:
+            v = ds[name]
+            print(f"  {name}: dims={v.dims} shape={v.shape} dtype={v.dtype}")
+    finally:
+        if ds is not None:
+            ds.close()
+        if tmp is not None:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def main() -> None:
@@ -99,7 +112,7 @@ def main() -> None:
         inspect_eddy_netcdf(p)
         return
     raise SystemExit(
-        "请使用: --write-template | --inspect | --export-yolo（OW 伪标签 → YOLO-seg，详见 docs/涡旋_OW至YOLO伪标签开发参考.md）"
+        "请使用: --write-template | --inspect | --export-yolo（OW 伪标签 → YOLO-seg，详见 docs/架构与方法/涡旋_OW至YOLO伪标签开发参考.md）"
     )
 
 

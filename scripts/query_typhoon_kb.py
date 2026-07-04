@@ -56,7 +56,7 @@ def _export_rows(rows: list[dict[str, Any]], export_path: str) -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="按时间窗+区域查询台风知识库")
+    parser = argparse.ArgumentParser(description="按时间窗+区域查询台风查询")
     parser.add_argument("--events-json", type=str, default="data/processed/anomaly/typhoon_kb/events.json")
     parser.add_argument("--start-time", type=str, required=True)
     parser.add_argument("--end-time", type=str, required=True)

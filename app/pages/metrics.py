@@ -20,7 +20,6 @@ def _flatten_numeric(raw: dict[str, Any], prefix: str = "") -> list[tuple[str, f
 
 def render(*, metrics_service: MetricsService) -> None:
     st.title("指标看板")
-    st.caption("读取 outputs 下现有指标 JSON；缺失时自动降级展示。")
 
     data = metrics_service.load_all()
     c1, c2, c3 = st.columns(3)

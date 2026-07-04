@@ -8,6 +8,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from services.hydro_inference_service import HydroInferenceService
+from src.hydro.physical_scale import (
+    denorm_array,
+    feature_unit,
+    feature_units_map,
+    finite_vmin_vmax,
+    resolve_zscore_stats,
+)
 from web_api.deps import resolve_nc_token, resolve_repo_relative
 from web_api.grid import lonlat_from_hydro_nc, sorted_nc_paths
 
@@ -98,19 +105,76 @@ def hydro_heatmap(body: HeatmapRequest) -> dict[str, Any]:
             status_code=400,
             detail=f"未知要素 {feat!r}，可用: {list(result.get('map_data', {}).keys())}",
         )
-    arr = result["map_data"][feat][map_key]
-    values = _nan_to_none_2d(arr)
+    maps = result["map_data"][feat]
+    gt_map = np.asarray(maps["gt"], dtype=np.float64)
+    pd_map = np.asarray(maps["pred"], dtype=np.float64)
 
     t_need = _svc.hydro_required_time_steps(body.config_path)
     t_hat = _svc.peek_hydro_buffer_time_steps([str(p) for p in ordered], config_path=body.config_path)
 
+    feature_names = list(result.get("feature_names", []))
+    warnings = list(result.get("warnings", []))
+    mat_public = {k: v for k, v in meta.items() if k not in ("x_path", "y_path")}
+
+    stats = resolve_zscore_stats(config_path=body.config_path, materialize_meta=meta)
+    value_scale = "physical"
+    value_unit = feature_unit(feat)
+    if map_key == "err":
+        value_unit = feature_unit(feat)  # |Δ| 与要素同量纲
+
+    if stats is not None:
+        mean_1d, std_1d, _ = stats
+        if mat_public.get("stats_npz_rejected"):
+            warnings = warnings + [str(mat_public["stats_npz_rejected"])]
+        if feat not in feature_names:
+            raise HTTPException(status_code=400, detail=f"要素 {feat!r} 不在配置 target_features 中")
+        fi = feature_names.index(feat)
+        gt_phys = denorm_array(gt_map, fi, mean_1d, std_1d)
+        pd_phys = denorm_array(pd_map, fi, mean_1d, std_1d)
+        if map_key == "gt":
+            arr = gt_phys
+        elif map_key == "pred":
+            arr = pd_phys
+        else:
+            arr = np.abs(pd_phys - gt_phys)
+    else:
+        value_scale = "normalized"
+        value_unit = "σ"
+        warnings = warnings + ["未解析到 Z-score 统计量，热力图与曲线仍为标准化值。"]
+        if map_key == "gt":
+            arr = gt_map
+        elif map_key == "pred":
+            arr = pd_map
+        else:
+            arr = np.abs(pd_map - gt_map)
+
+    vmin, vmax = finite_vmin_vmax(arr, floor_zero=(map_key == "err"))
+    values = _nan_to_none_2d(arr)
+
     curve_raw = result.get("curve_data") or {}
     curve_json: dict[str, Any] = {}
     for name, rows in curve_raw.items():
-        if isinstance(rows, list):
-            curve_json[str(name)] = rows
-        else:
+        if not isinstance(rows, list):
             curve_json[str(name)] = []
+            continue
+        out_rows: list[dict[str, float]] = []
+        if stats is not None and name in feature_names:
+            j = feature_names.index(name)
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                gt_z = float(row.get("gt", 0))
+                pd_z = float(row.get("pred", 0))
+                out_rows.append(
+                    {
+                        "horizon": float(row.get("horizon", 0)),
+                        "gt": float(denorm_array(np.array([gt_z]), j, mean_1d, std_1d)[0]),
+                        "pred": float(denorm_array(np.array([pd_z]), j, mean_1d, std_1d)[0]),
+                    }
+                )
+        else:
+            out_rows = [dict(row) for row in rows if isinstance(row, dict)]
+        curve_json[str(name)] = out_rows
 
     return {
         "lons": lons,
@@ -120,8 +184,13 @@ def hydro_heatmap(body: HeatmapRequest) -> dict[str, Any]:
         "kind": body.kind,
         "lead_time_index": int(body.lead_time_index),
         "crs": "EPSG:4326",
-        "warnings": list(result.get("warnings", [])),
-        "feature_names": list(result.get("feature_names", [])),
+        "value_scale": value_scale,
+        "value_unit": value_unit,
+        "vmin": vmin,
+        "vmax": vmax,
+        "feature_units": feature_units_map(feature_names),
+        "warnings": warnings,
+        "feature_names": feature_names,
         "curve_data": curve_json,
         "inference": {
             "nrmse_avg": result.get("nrmse_avg"),
@@ -133,7 +202,7 @@ def hydro_heatmap(body: HeatmapRequest) -> dict[str, Any]:
             "T_need": t_need,
             "T_hat": t_hat,
             "buffer_sufficient": bool(t_hat >= t_need),
-            "materialize": {k: v for k, v in meta.items() if k not in ("x_path", "y_path")},
+            "materialize": mat_public,
         },
     }
 

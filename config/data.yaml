@@ -20,7 +20,7 @@ spatial:
   lat_max: 41.0
 
 temporal:
-  # 海域要素预测命题方时间为 hourly；风-浪为 3-hourly 等见 docs/命题方数据集说明.md
+  # 海域要素预测命题方时间为 hourly；风-浪为 3-hourly 等见 docs/架构与方法/命题方数据集说明.md
   time_step_hours: 1
 
 split:
