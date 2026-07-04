@@ -1,13 +1,15 @@
 # EddyFusion — 海洋 AI 三模块系统
 
-面向 A09 赛题的**涡旋检测 · 水文预测 · 风浪异常**一体化工程：算法训练/评估、FastAPI 推理服务、React 论文演示前端与 Streamlit 离线工作台。
+> **论文对应版本**：本仓库即为毕业论文《基于深度学习的海洋涡旋识别与风浪预警系统设计》（黄柏霖，软件222）终稿所述实现。  
+> 论文实现线：**React + FastAPI**，涡旋（OW→YOLOv8-seg）+ 风浪（双头 LSTM + 3σ + DTW）；详见 [`submission/thesis/README.md`](submission/thesis/README.md)。
 
-| 模块 | 方法概要 | 主要入口 |
-|------|----------|----------|
-| **涡旋** | OW 伪标签 → YOLOv8-seg（3ch/7ch 物理通道） | `src/eddy/`、`config/eddy*.yaml` |
-| **水文** | ConvLSTM 多步预测 + 物理尺度 NRMSE | `src/hydro/`、`config/hydro*.yaml` |
-| **风浪异常** | 共享 LSTM 双头一步预测 + 残差 3σ + DTW 弱关联 | `src/anomaly/` |
+面向 A09 赛题的**涡旋检测 · 水文预测 · 风浪异常**一体化工程：算法训练/评估、FastAPI 推理服务、React **论文演示系统**与 Streamlit 早期原型。
 
+| 模块 | 方法概要 | 论文 | 主要入口 |
+|------|----------|:----:|----------|
+| **涡旋** | OW 伪标签 → YOLOv8-seg（在线 3ch） | ✅ | `src/eddy/`、`config/eddy*.yaml` |
+| **风浪异常** | 共享 LSTM 双头一步预测 + 残差 3σ + DTW 弱关联 | ✅ | `src/anomaly/` |
+| **水文** | ConvLSTM 多步预测 + 物理尺度 NRMSE | 赛题扩展 | `src/hydro/`、`config/hydro*.yaml` |
 ---
 
 ## 环境
@@ -27,8 +29,9 @@ pip install -r requirements.txt
 
 ## 快速启动（论文演示系统）
 
-**推荐**：React + FastAPI 双服务（实时/离线 NC 批处理、三模块面板）。
+**论文 §5.5 验收路径**：React + FastAPI 双服务（NetCDF 上传与裁剪、涡旋/风浪分析、报告导出）。
 
+顶栏四入口与论文 §4.5 一致：**监测总览 · 涡旋分析 · 风浪分析 · 报告管理**（`web/src/layout/DashboardLayout.tsx`）。
 ```powershell
 # 终端 1 — API（默认 http://127.0.0.1:8000）
 .\scripts\run_web_api.ps1
@@ -107,10 +110,10 @@ python scripts/run_system_tests.py   # 可选：UI/API 归档
 
 ## 提交材料
 
+- 论文镜像与代码对应说明：`submission/thesis/README.md`
 - 表格/图：`submission/tables/`、`submission/figures/`
 - 答辩 Q&A：`submission/答辩_前后端常见问题.md`
 - 云端结果说明：`outputs/cloud/README.md`
-
 ---
 
 ## 许可与引用
